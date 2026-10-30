@@ -77,6 +77,7 @@ git clone https://github.com/oblvsp/linuxmintai && cd linuxmintai
 ./install.sh                # агентный стек: шаги 0–8
 ./install.sh --with-monitor # + панель состояния и desklet (порт 11436)
 ./install.sh --with-webui   # то же + Open WebUI в Docker (шаг 10)
+./install.sh --with-search  # + SearXNG для веб-поиска агента (порт 8888)
 ```
 
 Скрипт идемпотентен: настроенные блоки пропускаются, повторный запуск безопасен. В конце он сам проверяет, что слушатели только на loopback, и делает сквозной вызов модели через bastion.
@@ -98,6 +99,14 @@ git clone https://github.com/oblvsp/linuxmintai && cd linuxmintai
 - `LOG.md` — журнал: после каждого прогона дописывается строка «запрос → итог», в промпт попадают последние 20 строк.
 
 Оба файла подмешиваются к вопросу автоматически ([`examples/project_memory.py`](examples/project_memory.py)): блок занимает ~600 токенов из 24576. Это дешевле встроенной памяти CrewAI, которой для того же нужны эмбеддинги на CPU. Проверка: `agent_demo.py "что ты делал в прошлый раз?"` — отвечает по `LOG.md`, команд не запускает.
+
+### Веб-поиск
+
+Агент умеет искать (`web_search`) и читать страницы (`fetch_page`); оба инструмента ходят только в локальный SearXNG на `127.0.0.1:8888` (`install.sh --with-search`).
+
+**Это единственный канал наружу.** Модель, чат и файлы остаются на машине, но текст поискового запроса и адреса открытых страниц уходят в поисковые системы. Не ищите через агента то, что не отправили бы в открытый поиск.
+
+`fetch_page` не открывает приватные адреса — loopback, LAN, link-local и `169.254.169.254`, включая редиректы; ответ ограничен 1 МБ и 4000 символов текста. Выдержки в результатах бывают устаревшими: инструмент прямо велит агенту открывать первоисточник, но версии и даты всё равно проверяйте (в первом прогоне модель назвала «последнюю стабильную Ollama 0.40.5» при установленной 0.40.11).
 
 Модель одна на всё. Переменные окружения остались для экспериментов — например, если поставите вторую модель и пропишете её в `broker.yaml`:
 
@@ -187,6 +196,8 @@ curl -s http://127.0.0.1:11434/v1/chat/completions \
 | [`tests/test_bash_gate.py`](tests/test_bash_gate.py) | проверка гейта: 21 опасная команда, 7 безопасных |
 | [`examples/agent_demo.py`](examples/agent_demo.py) | демо-агент |
 | [`examples/project_memory.py`](examples/project_memory.py) | PLAN.md + LOG.md в промпт, журнал после прогона |
+| [`examples/web_tools.py`](examples/web_tools.py) | `web_search` + `fetch_page` с защитой от SSRF |
+| [`tests/test_web_tools.py`](tests/test_web_tools.py) | проверка веб-инструментов и SSRF-защиты |
 | [`examples/PLAN.md`](examples/PLAN.md) | шаблон памяти проекта (правится вручную) |
 | [`examples/Modelfile`](examples/Modelfile) | шаблон чата для импорта GGUF |
 | [`examples/broker.yaml.example`](examples/broker.yaml.example) | эталонный конфиг bastion |

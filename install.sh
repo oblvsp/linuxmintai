@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # linuxmintai — идемпотентный установщик локального AI-воркспейса (local-only).
 # Повторный запуск безопасен: каждый блок пропускается, если компонент уже настроен.
-# Флаги: --with-monitor (панель 127.0.0.1:11436 + desklet), --with-webui (Open WebUI).
+# Флаги: --with-monitor (панель 127.0.0.1:11436 + desklet), --with-webui (Open WebUI),
+#        --with-search (SearXNG для web_search/fetch_page агента).
 # Логика и обоснование каждого шага — в PROMPT.md.
 set -u
 cd "$(dirname "$0")"
@@ -23,10 +24,12 @@ BROKER_YAML="$HOME/.config/bastion/broker.yaml"
 
 WITH_WEBUI=0
 WITH_MONITOR=0
+WITH_SEARCH=0
 for arg in "$@"; do
   case "$arg" in
     --with-webui) WITH_WEBUI=1 ;;
     --with-monitor) WITH_MONITOR=1 ;;
+    --with-search) WITH_SEARCH=1 ;;
     *) echo "[WARN] неизвестный флаг: $arg" ;;
   esac
 done
@@ -224,7 +227,7 @@ else
   run uv venv "$VENV"
   run uv pip install --python "$VENV/bin/python" 'crewai[litellm]' crewai-tools
 fi
-for f in config_llm.py bash_tool.py agent_demo.py project_memory.py; do
+for f in config_llm.py bash_tool.py web_tools.py agent_demo.py project_memory.py; do
   if [ -f "$HOME/ai-workspace/$f" ]; then echo "[SKIP] ~/ai-workspace/$f (не перезаписываю; свежие эталоны — examples/)"; else
     run cp "examples/$f" "$HOME/ai-workspace/$f"
   fi
@@ -336,10 +339,62 @@ PYEOF
   fi
 fi
 
+# ---------- Шаг 10.5 (опция --with-search): SearXNG для веб-инструментов ----------
+# Единственный канал наружу: текст поискового запроса уходит в поисковые системы.
+# Всё остальное (модель, чат, агент) остаётся на машине.
+if [ "$WITH_SEARCH" = 1 ]; then
+  if ! docker info >/dev/null 2>&1; then
+    run $SUDO systemctl enable --now docker
+  fi
+  SEARX_DIR="$HOME/.config/searxng"
+  mkdir -p "$SEARX_DIR"
+  if docker ps -a --format '{{.Names}}' | grep -qx searxng; then
+    skip "контейнер searxng существует"
+    docker start searxng >/dev/null 2>&1 || true
+  else
+    run docker run -d --name searxng --restart unless-stopped \
+      -p 127.0.0.1:8888:8080 \
+      -v "$SEARX_DIR:/etc/searxng" \
+      -e SEARXNG_SECRET="$(openssl rand -hex 32)" \
+      -e SEARXNG_BASE_URL="http://127.0.0.1:8888/" \
+      searxng/searxng:latest
+  fi
+  for _ in $(seq 1 60); do
+    [ "$(curl -s -m 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:8888/ 2>/dev/null)" = 200 ] && break
+    sleep 2
+  done
+  # settings.yml принадлежит uid контейнера: снаружи без root не перезаписать, патчим изнутри
+  if docker exec searxng sh -c 'grep -q "json" /etc/searxng/settings.yml' 2>/dev/null; then
+    skip "SearXNG: JSON API уже включён"
+  else
+    docker exec -i -u 0 searxng sh -c 'cat > /etc/searxng/settings.yml' <<'EOF'
+use_default_settings: true
+
+server:
+  image_proxy: true
+  limiter: false
+  public_instance: false
+  method: "GET"
+
+search:
+  safe_search: 1
+  formats:
+    - html
+    - json
+EOF
+    run docker restart searxng
+    sleep 3
+    ok "SearXNG: JSON API включён (secret_key берётся из SEARXNG_SECRET)"
+  fi
+  curl -s -m 20 "http://127.0.0.1:8888/search?q=linux+loopback&format=json" | grep -q '"results"' \
+    || die "SearXNG не отдаёт JSON: docker logs searxng"
+  ok "поиск работает: http://127.0.0.1:8888/"
+fi
+
 # ---------- Финальная проверка ----------
 echo; echo "=== Итоговая проверка ==="
 bastion --validate 2>&1 | tail -3
-ss -tlnp 2>/dev/null | grep -E '1143[456]|:3000' | grep -v '127.0.0.1' && die "найден не-loopback слушатель!" || ok "слушатели только на 127.0.0.1"
+ss -tlnp 2>/dev/null | grep -E '1143[456]|:3000|:8888' | grep -v '127.0.0.1' && die "найден не-loopback слушатель!" || ok "слушатели только на 127.0.0.1"
 curl -s -m 300 http://127.0.0.1:11434/api/generate -d '{"model":"qwen3.5:9b","prompt":"ping","stream":false,"options":{"num_predict":8}}' >/dev/null && ok "сквозной вызов qwen3.5:9b через bastion прошёл"
 if [ "$WITH_MONITOR" = 1 ]; then
   curl -s -m 3 http://127.0.0.1:11436/api/status >/dev/null && ok "панель состояния отвечает" || die "панель не отвечает: journalctl --user -u lmintai-status"

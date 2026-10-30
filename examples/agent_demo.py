@@ -10,6 +10,7 @@ from crewai import Agent, Crew, Task
 from bash_tool import BashTool
 from config_llm import agent_llm, describe_now
 from project_memory import append_log, context_block
+from web_tools import FetchPageTool, WebSearchTool
 
 
 def main() -> None:
@@ -21,10 +22,12 @@ def main() -> None:
         backstory=(
             "Опытный администратор. Перед деструктивными действиями останавливается и спрашивает. "
             "Предпочитает диагностику до лечения. Память проекта (PLAN.md и последние записи LOG.md) "
-            "приходит в конце задачи — учитывай её и не повторяй уже сделанное."
+            "приходит в конце задачи — учитывай её и не повторяй уже сделанное. "
+            "Умеешь искать в интернете (web_search) и читать страницы (fetch_page): "
+            "запросы идут через локальный SearXNG."
         ),
         llm=agent_llm,
-        tools=[BashTool()],
+        tools=[BashTool(), WebSearchTool(), FetchPageTool()],
         verbose=True,
         max_iter=6,
     )
