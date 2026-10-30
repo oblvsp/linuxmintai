@@ -6,10 +6,11 @@ from crewai import LLM
 
 BROKER_URL = "http://localhost:11434"  # bastion -> Ollama (127.0.0.1:11435)
 
-AGENT_MODEL_ID = os.environ.get("LMINTAI_AGENT_MODEL", "ollama/crewai-qwen3-8b")
+AGENT_MODEL_ID = os.environ.get("LMINTAI_AGENT_MODEL", "ollama/qwen3.5:9b")
 THINK_MODEL_ID = os.environ.get("LMINTAI_THINK_MODEL", "ollama/qwen3.5:9b")
 
-# Агентные задачи (с tools) -> agent_llm; вопросы без инструментов -> think_llm.
+# Одна модель на все роли: в VRAM всё равно помещается одна, а любая смена модели —
+# это выгрузка и загрузка 5–15 s. Разделение оставлено на случай экспериментов с env.
 agent_llm = LLM(model=AGENT_MODEL_ID, base_url=BROKER_URL, temperature=0.2)
 think_llm = LLM(model=THINK_MODEL_ID, base_url=BROKER_URL, temperature=0.4)
 

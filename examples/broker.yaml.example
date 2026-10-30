@@ -23,17 +23,7 @@ scheduler:
 # vram_gb — замеренный runtime-VRAM (size_vram из /api/ps), а не размер файла:
 # завышение запирает модель в очереди по nvidia-smi backstop, занижение рискует OOM.
 models:
-  "qwen3:8b":
-    vram_gb: 5.1
-    default_num_ctx: 4096
-    tags: ["general"]
-
   "qwen3.5:9b":
-    vram_gb: 5.5        # замер при num_ctx 24576 (5874MB); при 16384 — 5795MB
-    default_num_ctx: 24576  # файлы до ~24k токенов, часть слоёв уходит в CPU
+    vram_gb: 5.5        # size_vram 5602MB при num_ctx 24576; 5527MB при 16384
+    default_num_ctx: 24576  # файлы до ~24k токенов целиком; 684MB весов уходит в CPU
     tags: ["general"]
-
-  "crewai-qwen3-8b":
-    vram_gb: 5.1
-    default_num_ctx: 4096
-    tags: ["agent"]

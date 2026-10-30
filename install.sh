@@ -19,8 +19,6 @@ rootcmd() {
   else die "нужен root (sudo или pkexec)"; fi
 }
 
-HF_URL="https://huggingface.co/rchow93/crewai-qwen3-8b-gguf/resolve/main/crewai-qwen3-8b-thinking-v2-q4_k_m.gguf"
-HF_SIZE=5027783936
 BROKER_YAML="$HOME/.config/bastion/broker.yaml"
 
 WITH_WEBUI=0
@@ -67,7 +65,10 @@ if command -v ollama >/dev/null; then skip "ollama уже установлена
 fi
 
 DROPIN=/etc/systemd/system/ollama.service.d/override.conf
-WANT_ENVS=(OLLAMA_HOST=127.0.0.1:11435 OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_NUM_PARALLEL=1 OLLAMA_KEEP_ALIVE=30m OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0)
+# OLLAMA_CONTEXT_LENGTH — серверный дефолт контекста. Нужен потому, что CrewAI/LiteLLM
+# ходят в OpenAI-совместимый /v1, где инъекция num_ctx от bastion теряется, и Ollama
+# брала бы свои 4096. Держать в согласии с default_num_ctx модели в broker.yaml.
+WANT_ENVS=(OLLAMA_HOST=127.0.0.1:11435 OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_NUM_PARALLEL=1 OLLAMA_KEEP_ALIVE=30m OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0 OLLAMA_CONTEXT_LENGTH=24576)
 need_dropin=1
 if $SUDO test -f "$DROPIN" 2>/dev/null; then
   need_dropin=0
@@ -160,11 +161,10 @@ else:
     src = src.replace('gpu:\n', 'gpu:\n  hardware_margin_gb: 0.9\n', 1)
 # 3) записи моделей: vram_gb — замеренный runtime-VRAM, не размер файла.
 #    Завышение запирает модель в очереди (nvidia-smi backstop), занижение — риск OOM.
-#    default_num_ctx — потолок промпта; выше ~16k часть слоёв уходит в CPU.
+#    default_num_ctx — потолок промпта: выше 16k скорость падает на треть, зато файлы
+#    до 24k токенов доходят целиком (Ollama режет промпт вдвое, как только не влезает).
 models = {
-    "qwen3:8b": ("5.1", 4096, "general"),
     "qwen3.5:9b": ("5.5", 24576, "general"),
-    "crewai-qwen3-8b": ("5.1", 4096, "agent"),
 }
 for name, (gb, ctx, tag) in models.items():
     pattern = re.compile(r'("' + re.escape(name) + r'":\s*\n\s*vram_gb:\s*)[0-9.]+([^\n]*\n\s*default_num_ctx:\s*)[0-9]+')
@@ -202,37 +202,16 @@ systemctl --user is-active --quiet bastion || die "bastion не запустил
 curl -s -m 5 http://127.0.0.1:11434/broker/status >/dev/null || die "/broker/status не отвечает"
 ok "bastion активен на 127.0.0.1:11434"
 
-# ---------- Шаг 4: модель crewai-qwen3-8b ----------
-if ollama list | grep -q "crewai-qwen3-8b"; then
-  skip "модель crewai-qwen3-8b уже в Ollama"
+# ---------- Шаг 4: модель qwen3.5:9b ----------
+# Единственная модель на все роли: две в 8 GB VRAM всё равно не помещаются,
+# а каждая смена модели — выгрузка и загрузка на 5–15 s.
+if ollama list | grep -q "qwen3.5:9b"; then
+  skip "модель qwen3.5:9b уже в Ollama"
 else
-  mkdir -p "$HOME/models/crewai"
-  GGUF="$HOME/models/crewai/crewai-qwen3-8b.gguf"
-  if [ ! -f "$GGUF" ] || [ "$(stat -c %s "$GGUF")" != "$HF_SIZE" ]; then
-    echo "[RUN] скачиваю GGUF (4.7 GB, HF throttle 2–6 MB/s) — можно перезапустить, curl resume'ится"
-    run curl -sSL -C - -o "$GGUF" "$HF_URL"
-    [ "$(stat -c %s "$GGUF")" = "$HF_SIZE" ] || die "размер GGUF не совпадает с ожидаемым"
-  fi
-  cp -n examples/Modelfile "$HOME/models/crewai/Modelfile" 2>/dev/null || true
-  [ -f "$HOME/models/crewai/Modelfile" ] || die "нет ~/models/crewai/Modelfile"
-
-  if ! ollama create crewai-qwen3-8b -f "$HOME/models/crewai/Modelfile" >/dev/null 2>&1; then
-    echo "[WARN] прямой create не удался (обычно сервис ollama не может прочитать GGUF из домашней папки) — обход через временный экземпляр"
-    OLLAMA_HOST=127.0.0.1:11437 OLLAMA_MODELS="$HOME/.ollama/models" ollama serve >/tmp/ollama_tmp.log 2>&1 &
-    TMP_PID=$!
-    for i in $(seq 1 30); do curl -s -m 2 http://127.0.0.1:11437/api/version >/dev/null && break; sleep 1; done
-    OLLAMA_HOST=127.0.0.1:11437 ollama create crewai-qwen3-8b -f "$HOME/models/crewai/Modelfile" || die "create на временном экземпляре не удался"
-    kill "$TMP_PID" 2>/dev/null
-    SVC_MODELS=/usr/share/ollama/.ollama/models
-    run $SUDO mkdir -p "$SVC_MODELS/blobs" "$SVC_MODELS/manifests-v2"
-    run $SUDO cp -a "$HOME/.ollama/models/blobs/." "$SVC_MODELS/blobs/"
-    run $SUDO cp -a "$HOME/.ollama/models/manifests-v2/." "$SVC_MODELS/manifests-v2/"
-    run $SUDO chown -R ollama:ollama /usr/share/ollama/.ollama/models
-    rm -rf "$HOME/.ollama/models"
-  fi
-  ollama list | grep -q "crewai-qwen3-8b" || die "модель так и не появилась в ollama list"
-  ok "crewai-qwen3-8b импортирована"
+  echo "[RUN] скачиваю qwen3.5:9b (~6.6 GB); повторный запуск докачивает"
+  OLLAMA_HOST=127.0.0.1:11435 run ollama pull qwen3.5:9b
 fi
+ollama list | grep -q "qwen3.5:9b" || die "модель так и не появилась в ollama list"
 systemctl --user restart bastion; sleep 2
 
 # ---------- Шаг 5/6/7: Python-стек и файлы воркспейса ----------
@@ -310,7 +289,7 @@ fi
 echo; echo "=== Итоговая проверка ==="
 bastion --validate 2>&1 | tail -3
 ss -tlnp 2>/dev/null | grep -E '1143[456]|:3000' | grep -v '127.0.0.1' && die "найден не-loopback слушатель!" || ok "слушатели только на 127.0.0.1"
-curl -s -m 60 http://127.0.0.1:11434/api/generate -d '{"model":"crewai-qwen3-8b","prompt":"ping","stream":false,"options":{"num_predict":8}}' >/dev/null && ok "сквозной вызов crewai-qwen3-8b через bastion прошёл"
+curl -s -m 300 http://127.0.0.1:11434/api/generate -d '{"model":"qwen3.5:9b","prompt":"ping","stream":false,"options":{"num_predict":8}}' >/dev/null && ok "сквозной вызов qwen3.5:9b через bastion прошёл"
 if [ "$WITH_MONITOR" = 1 ]; then
   curl -s -m 3 http://127.0.0.1:11436/api/status >/dev/null && ok "панель состояния отвечает" || die "панель не отвечает: journalctl --user -u lmintai-status"
 fi

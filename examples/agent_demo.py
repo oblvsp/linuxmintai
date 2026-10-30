@@ -1,7 +1,7 @@
 """Демо системного ассистента linuxmintai: агент с bash-инструментом на локальной модели.
 
 Запуск: ~/ai-workspace/venv/bin/python ~/ai-workspace/agent_demo.py "почини права у ~/.bashrc"
-Модель агента: LMINTAI_AGENT_MODEL (по умолчанию ollama/crewai-qwen3-8b).
+Модель агента: LMINTAI_AGENT_MODEL (по умолчанию ollama/qwen3.5:9b).
 """
 import sys
 
