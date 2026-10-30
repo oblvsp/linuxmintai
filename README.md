@@ -95,7 +95,7 @@ git clone https://github.com/oblvsp/linuxmintai && cd linuxmintai
 Модель одна на всё. Переменные окружения остались для экспериментов — например, если поставите вторую модель и пропишете её в `broker.yaml`:
 
 ```bash
-LMINTAI_AGENT_MODEL=ollama/qwen3:8b \
+LMINTAI_AGENT_MODEL=ollama/<другая-модель> \
   ~/ai-workspace/venv/bin/python ~/ai-workspace/agent_demo.py "вопрос"
 ```
 
