@@ -1,6 +1,10 @@
 [Unit]
 Description=linuxmintai status dashboard (127.0.0.1:11436)
-After=bastion.service
+# Без After=bastion.service: bastion объявлен с After=default.target и
+# WantedBy=default.target, поэтому любая зависимость от него создаёт цикл
+# default.target → lmintai-status → bastion → default.target, и systemd
+# выбрасывает задание старта панели. Панель сама переживает недоступность
+# bastion (показывает «bastion недоступен»), так что порядок не нужен.
 
 [Service]
 Type=simple
