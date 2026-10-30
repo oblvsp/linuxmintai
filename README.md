@@ -92,6 +92,13 @@ git clone https://github.com/oblvsp/linuxmintai && cd linuxmintai
 
 Агент работает с `BashTool`: деструктивные команды блокируются чёрным списком, а в конце выводится, какая модель реально была резидентна и сколько VRAM занято.
 
+**Память между запусками** — два текстовых файла в `~/ai-workspace/`:
+
+- `PLAN.md` — то, что агент обязан знать о системе и правилах; правите вы, агент только читает. В промпт уходит не больше 2500 символов.
+- `LOG.md` — журнал: после каждого прогона дописывается строка «запрос → итог», в промпт попадают последние 20 строк.
+
+Оба файла подмешиваются к вопросу автоматически ([`examples/project_memory.py`](examples/project_memory.py)): блок занимает ~600 токенов из 24576. Это дешевле встроенной памяти CrewAI, которой для того же нужны эмбеддинги на CPU. Проверка: `agent_demo.py "что ты делал в прошлый раз?"` — отвечает по `LOG.md`, команд не запускает.
+
 Модель одна на всё. Переменные окружения остались для экспериментов — например, если поставите вторую модель и пропишете её в `broker.yaml`:
 
 ```bash
@@ -178,6 +185,8 @@ curl -s http://127.0.0.1:11434/v1/chat/completions \
 | [`examples/config_llm.py`](examples/config_llm.py) | LLM-объекты CrewAI + `describe_now()` |
 | [`examples/bash_tool.py`](examples/bash_tool.py) | bash-инструмент с чёрным списком |
 | [`examples/agent_demo.py`](examples/agent_demo.py) | демо-агент |
+| [`examples/project_memory.py`](examples/project_memory.py) | PLAN.md + LOG.md в промпт, журнал после прогона |
+| [`examples/PLAN.md`](examples/PLAN.md) | шаблон памяти проекта (правится вручную) |
 | [`examples/Modelfile`](examples/Modelfile) | шаблон чата для импорта GGUF |
 | [`examples/broker.yaml.example`](examples/broker.yaml.example) | эталонный конфиг bastion |
 | [`examples/bastion.service`](examples/bastion.service) | user-юнит брокера |

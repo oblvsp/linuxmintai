@@ -224,11 +224,17 @@ else
   run uv venv "$VENV"
   run uv pip install --python "$VENV/bin/python" 'crewai[litellm]' crewai-tools
 fi
-for f in config_llm.py bash_tool.py agent_demo.py; do
+for f in config_llm.py bash_tool.py agent_demo.py project_memory.py; do
   if [ -f "$HOME/ai-workspace/$f" ]; then echo "[SKIP] ~/ai-workspace/$f (не перезаписываю; свежие эталоны — examples/)"; else
     run cp "examples/$f" "$HOME/ai-workspace/$f"
   fi
 done
+# PLAN.md правится пользователем, поэтому не перезаписывается; LOG.md создаётся агентом
+if [ -f "$HOME/ai-workspace/PLAN.md" ]; then
+  echo "[SKIP] ~/ai-workspace/PLAN.md (память проекта)"
+else
+  run cp examples/PLAN.md "$HOME/ai-workspace/PLAN.md"
+fi
 
 # ---------- Шаг 8: Open Interpreter ----------
 if command -v interpreter >/dev/null; then
