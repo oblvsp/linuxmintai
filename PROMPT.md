@@ -203,7 +203,10 @@ uv venv ~/ai-workspace/venv
 
 Docker включаете осознанно только ради WebUI (остальные компоненты — нативные systemd-сервисы). Проверенная установка:
 
+docker network create llmstack 2>/dev/null || true
+
 docker run -d --name open-webui --restart unless-stopped \
+  --network llmstack \
   --add-host=host.docker.internal:host-gateway \
   -p 127.0.0.1:3000:8080 \
   -v open-webui:/app/backend/data \
@@ -211,6 +214,10 @@ docker run -d --name open-webui --restart unless-stopped \
   -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
   -e SCARF_NO_ANALYTICS=true -e DO_NOT_TRACK=true -e ANONYMIZED_TELEMETRY=false \
   ghcr.io/open-webui/open-webui:main
+
+docker network connect bridge open-webui 2>/dev/null || true
+
+`--network llmstack` — общая сеть с SearXNG (`http://searxng:8080`). Вторым интерфейсом обязательно оставить `bridge`: мостик bastion (`route_localnet`/DNAT на docker0) привязан к `docker0`, и без этого WebUI не достучится до Ollama — `host.docker.internal:11434` из сети llmstack уходит в таймаут.
 
 Подключать WebUI нужно НАТИВНЫМ Ollama-API, а не через `OPENAI_API_BASE_URL=.../v1`: bastion 0.6.0 буферизует `/v1/*` и на `stream:true` возвращает `application/json` с телом `{"raw": "data: ... [DONE]"}`. WebUI ждёт SSE до таймаута — чат «висит». Если провайдер OpenAI уже был настроен раньше, его нужно выключить в Admin → Settings → Connections (пустые base URL/key), иначе в списке моделей появятся дубли из сломанного `/v1`.
 
@@ -228,6 +235,7 @@ docker run -d --name open-webui --restart unless-stopped \
 Локальный метапоисковик на 127.0.0.1:8888 — единственный выход в интернет во всей системе; включайте осознанно: запросы и открытые страницы уходят в поисковые системы.
 
 docker run -d --name searxng --restart unless-stopped \
+  --network llmstack \
   -p 127.0.0.1:8888:8080 \
   -v ~/.config/searxng:/etc/searxng \
   -e SEARXNG_SECRET="$(openssl rand -hex 32)" \

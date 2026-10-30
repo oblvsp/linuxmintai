@@ -11,6 +11,7 @@ ok()   { echo "[OK]   $*"; }
 skip() { echo "[SKIP] $*"; }
 run()   { echo "[RUN]  $*"; "$@" || die "команда не удалась: $*"; }
 die()  { echo "[FAIL] $*" >&2; exit 1; }
+in_net() { docker network inspect "$1" -f '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}' 2>/dev/null | grep -qx "$2"; }
 
 SUDO=""
 rootcmd() {
@@ -278,11 +279,13 @@ if [ "$WITH_WEBUI" = 1 ]; then
   else
     skip "bastion-webui-bridge уже активен"
   fi
+  docker network inspect llmstack >/dev/null 2>&1 || run docker network create llmstack
   if docker ps --format '{{.Names}}' | grep -qx open-webui; then
     skip "контейнер open-webui запущен"
   else
     docker rm -f open-webui 2>/dev/null
     run docker run -d --name open-webui --restart unless-stopped \
+      --network llmstack \
       --add-host=host.docker.internal:host-gateway \
       -p 127.0.0.1:3000:8080 \
       -v open-webui:/app/backend/data \
@@ -292,6 +295,10 @@ if [ "$WITH_WEBUI" = 1 ]; then
       ghcr.io/open-webui/open-webui:main
     ok "Open WebUI: http://127.0.0.1:3000 (первый вход создаёт администратора)"
   fi
+  # llmstack — общая сеть с SearXNG (http://searxng:8080); bridge нужен мостику
+  # bastion: его DNAT/ACCEPT привязаны к docker0, иначе Ollama недоступна
+  in_net llmstack open-webui || run docker network connect llmstack open-webui
+  in_net bridge open-webui || run docker network connect bridge open-webui
 
   # --- настройки в webui.db ---
   # БД перекрывает env-переменные контейнера, поэтому нужные ключи выставляются явно.
@@ -348,17 +355,21 @@ if [ "$WITH_SEARCH" = 1 ]; then
   fi
   SEARX_DIR="$HOME/.config/searxng"
   mkdir -p "$SEARX_DIR"
+  docker network inspect llmstack >/dev/null 2>&1 || run docker network create llmstack
   if docker ps -a --format '{{.Names}}' | grep -qx searxng; then
     skip "контейнер searxng существует"
     docker start searxng >/dev/null 2>&1 || true
   else
     run docker run -d --name searxng --restart unless-stopped \
+      --network llmstack \
       -p 127.0.0.1:8888:8080 \
       -v "$SEARX_DIR:/etc/searxng" \
       -e SEARXNG_SECRET="$(openssl rand -hex 32)" \
       -e SEARXNG_BASE_URL="http://127.0.0.1:8888/" \
       searxng/searxng:latest
   fi
+  # WebUI обращается к SearXNG по имени http://searxng:8080 в общей сети llmstack
+  in_net llmstack searxng || run docker network connect llmstack searxng
   for _ in $(seq 1 60); do
     [ "$(curl -s -m 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:8888/ 2>/dev/null)" = 200 ] && break
     sleep 2
