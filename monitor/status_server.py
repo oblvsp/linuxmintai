@@ -1,24 +1,36 @@
 #!/usr/bin/env python3
-"""Панель состояния linuxmintai: bastion + GPU + память на 127.0.0.1:11436.
+"""Хаб linuxmintai: фаза bastion, стек, ресурсы, модели и бэкапы на 127.0.0.1:11436.
 
     python3 status_server.py [--port 11436] [--bastion http://127.0.0.1:11434]
 
 Эндпоинты:
-    /            HTML-дашборд (обновляется раз в секунду)
-    /api/status  JSON для дашборда и внешних потребителей
+    /            HTML-хаб: живая фаза модели + стек/модели/бэкапы/ресурсы
+    /api/status  JSON для дашборда и внешних потребителей (живые метрики)
+    /api/hub     JSON сводки хаба (стек, модели, бэкапы, сбои)
     /api/text    4 строки текста для desklet/Conky
 """
 import argparse
 import json
+import os
 import subprocess
 import threading
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASTION = "http://127.0.0.1:11434/broker/status"
 PORT = 11436
 CACHE_TTL = 0.7
+
+HOSTAGENT = "http://172.17.0.1:8767"
+WEBUI = "http://127.0.0.1:3000"
+SEARXNG = "http://127.0.0.1:8888"
+OLLAMA_TAGS = "http://127.0.0.1:11434/api/tags"
+BACKUP_RUNS = "/media/vsp/0FD14653488FB355/locallmstack-backup/runs"
+TIMER_UNITS = ("locallmstack-backup.timer", "locallmstack-backup-full.timer",
+               "locallmstack-models.timer")
+HUB_TTL = 6.0
 
 PHASE_RU = {
     "idle": "простой",
@@ -30,6 +42,8 @@ PHASE_RU = {
 
 _cache = {"at": 0.0, "payload": None}
 _lock = threading.Lock()
+_hub_cache = {"at": 0.0, "payload": None}
+_hub_lock = threading.Lock()
 
 
 def _short(name):
@@ -158,6 +172,226 @@ def current():
         return _cache["payload"]
 
 
+def _fetch_json(url, timeout=1.5):
+    with urllib.request.urlopen(url, timeout=timeout) as r:
+        return json.load(r)
+
+
+def _fetch_status(url, timeout=1.5):
+    with urllib.request.urlopen(url, timeout=timeout) as r:
+        return r.status
+
+
+def _safe(fn, *args):
+    try:
+        return fn(*args), None
+    except Exception as e:
+        return None, f"{type(e).__name__}: {e}"
+
+
+def docker_states():
+    try:
+        out = subprocess.run(
+            ["docker", "inspect", "open-webui", "searxng", "--format",
+             "{{.Name}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}"
+             "{{else}}-{{end}}|{{.Config.Image}}|{{.State.StartedAt}}"],
+            capture_output=True, text=True, timeout=3,
+        ).stdout
+    except Exception:
+        return {}
+    states = {}
+    for line in out.splitlines():
+        name, status, health, image, started = (line.split("|") + [""] * 5)[:5]
+        states[name.lstrip("/")] = {
+            "status": status, "health": health, "image": image, "started": started,
+        }
+    return states
+
+
+def timer_states():
+    try:
+        out = subprocess.run(
+            ["systemctl", "--user", "list-timers", "--all", "--output=json"],
+            capture_output=True, text=True, timeout=3,
+        ).stdout
+        rows = json.loads(out) if out.strip() else []
+    except Exception:
+        return []
+    by_unit = {r.get("unit"): r for r in rows if isinstance(r, dict)}
+    result = []
+    for unit in TIMER_UNITS:
+        r = by_unit.get(unit)
+        if not r:
+            result.append({"unit": unit, "present": False})
+            continue
+        # systemd отдаёт next/last в микросекундах epoch
+        next_s = (r.get("next") or 0) / 1e6 or None
+        last_s = (r.get("last") or 0) / 1e6 or None
+        result.append({"unit": unit, "present": True, "next": next_s, "last": last_s})
+    return result
+
+
+def backup_summary():
+    base = BACKUP_RUNS
+    try:
+        runs = sorted(
+            (d for d in os.listdir(base)
+             if os.path.isdir(os.path.join(base, d)) and not d.startswith(".")),
+            reverse=True,
+        )
+    except OSError as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}", "location": base}
+    if not runs:
+        return {"ok": True, "runs": 0, "location": base}
+
+    path = os.path.join(base, runs[0])
+    meta = {}
+    try:
+        with open(os.path.join(path, "manifest.txt")) as f:
+            for line in f:
+                if line[:1].isspace() or "=" not in line:
+                    continue
+                key, _, value = line.strip().partition("=")
+                meta[key] = value
+    except OSError:
+        pass
+
+    size = files = 0
+    try:
+        for entry in os.scandir(path):
+            if entry.is_file():
+                size += entry.stat().st_size
+                files += 1
+    except OSError:
+        pass
+
+    try:
+        counts = json.loads(meta.get("counts", "{}"))
+    except ValueError:
+        counts = {}
+    return {
+        "ok": True,
+        "runs": len(runs),
+        "latest": runs[0],
+        "date": meta.get("date"),
+        "size_bytes": size,
+        "files": files,
+        "sums": os.path.exists(os.path.join(path, "SHA256SUMS")),
+        "counts": counts,
+        "image": meta.get("image", ""),
+        "ollama": meta.get("ollama", ""),
+        "location": base,
+    }
+
+
+def build_hub():
+    state = current()
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        f_host = ex.submit(_safe, _fetch_json, HOSTAGENT + "/metrics", 1.5)
+        f_web = ex.submit(_safe, _fetch_json, WEBUI + "/health", 1.5)
+        f_search = ex.submit(_safe, _fetch_status, SEARXNG + "/", 1.5)
+        f_tags = ex.submit(_safe, _fetch_json, OLLAMA_TAGS, 2.0)
+        host, host_err = f_host.result()
+        web, web_err = f_web.result()
+        search, search_err = f_search.result()
+        tags, tags_err = f_tags.result()
+
+    docker = docker_states()
+    loaded = {_short(m["name"]) for m in state.get("loaded") or []}
+
+    def svc(name, ok, detail, url, container=None):
+        st = docker.get(container) if container else None
+        if st and st.get("health") not in (None, "-"):
+            detail = f"{detail} · {st['health']}"
+        return {"id": name, "ok": bool(ok), "detail": detail, "url": url,
+                "started": (st or {}).get("started")}
+
+    services = [
+        svc("Open WebUI", web is not None and web.get("status") is True,
+            "HTTP 200" if web_err is None else web_err, WEBUI, "open-webui"),
+        svc("SearXNG", search == 200,
+            "HTTP 200" if search == 200 else (search_err or f"HTTP {search}"),
+            SEARXNG, "searxng"),
+        svc("Bastion / Ollama", state["phase"] != "offline",
+            PHASE_RU.get(state["phase"], state["phase"]) + " · :11434",
+            "http://127.0.0.1:11434"),
+        svc("Hostagent", host is not None,
+            "метрики хоста" if host_err is None else host_err, HOSTAGENT),
+    ]
+
+    model_list = []
+    for m in (tags or {}).get("models", []):
+        name = m.get("name", "?")
+        model_list.append({
+            "name": name,
+            "size_gb": round((m.get("size") or 0) / 1e9, 1),
+            "loaded": _short(name) in loaded,
+        })
+
+    if host:
+        mem = host.get("memory") or {}
+        disks = host.get("disks") or []
+        gpu = host.get("gpu") or {}
+        resources = {
+            "ok": True,
+            "load": host.get("load"),
+            "uptime_s": host.get("uptime_seconds"),
+            "mem_total": mem.get("total"), "mem_used": mem.get("used"),
+            "mem_pct": mem.get("percent"),
+            "swap_total": mem.get("swap_total"),
+            "swap_used": (mem.get("swap_total") or 0) - (mem.get("swap_free") or 0),
+            "disks": [{"target": d.get("target"), "pct": d.get("percent"),
+                       "used": d.get("used"), "total": d.get("total")} for d in disks],
+            "gpu_pct": gpu.get("util_percent"), "gpu_temp": gpu.get("temperature_c"),
+            "gpu_used": gpu.get("memory_used"), "gpu_total": gpu.get("memory_total"),
+        }
+    else:
+        mem = read_mem()
+        g = gpu_direct() or {}
+        resources = {
+            "ok": False, "error": host_err, "load": [read_load1()],
+            "mem_total": mem["total_mb"] * 1024 * 1024,
+            "mem_used": mem["used_mb"] * 1024 * 1024,
+            "mem_pct": round(mem["used_mb"] * 100 / max(1, mem["total_mb"]), 1),
+            "swap_total": mem["swap_total_mb"] * 1024 * 1024,
+            "swap_used": mem["swap_used_mb"] * 1024 * 1024,
+            "disks": [],
+            "gpu_pct": g.get("util_pct"), "gpu_temp": g.get("temp_c"),
+            "gpu_used": (g.get("vram_used_mb") or 0) * 1024 * 1024,
+            "gpu_total": (g.get("vram_total_mb") or 0) * 1024 * 1024,
+        }
+
+    return {
+        "ts": round(time.time(), 3),
+        "phase": state["phase"],
+        "services": services,
+        "models": model_list,
+        "models_error": tags_err,
+        "backups": backup_summary(),
+        "timers": timer_states(),
+        "resources": resources,
+        "failed": {
+            "system": (host or {}).get("failed_units") or [],
+            "user": (host or {}).get("user_failed_units") or [],
+        },
+        "links": [
+            {"title": "Open WebUI", "url": WEBUI},
+            {"title": "SearXNG", "url": SEARXNG},
+            {"title": "Этот хаб", "url": f"http://127.0.0.1:{PORT}/"},
+        ],
+    }
+
+
+def current_hub():
+    now = time.time()
+    with _hub_lock:
+        if _hub_cache["payload"] is None or now - _hub_cache["at"] > HUB_TTL:
+            _hub_cache["payload"] = build_hub()
+            _hub_cache["at"] = now
+        return _hub_cache["payload"]
+
+
 def as_text(p):
     phase = PHASE_RU.get(p["phase"], p["phase"])
     head = phase if not p.get("model") else f"{phase} · {_short(p['model'])}"
@@ -180,21 +414,28 @@ def as_text(p):
 
 PAGE = """<!doctype html>
 <html lang="ru"><head><meta charset="utf-8">
-<title>linuxmintai · состояние</title>
+<title>linuxmintai · хаб</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
  :root { color-scheme: dark; }
  * { box-sizing: border-box; }
  body { margin:0; background:#0f1115; color:#e6e8eb;
         font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
- .wrap { max-width:660px; margin:0 auto; padding:28px 20px 40px; }
+ .wrap { max-width:980px; margin:0 auto; padding:28px 20px 40px; }
  h1 { font-size:15px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
       color:#8b95a5; margin:0 0 16px; }
+ h2 { font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+      color:#7c8698; margin:0 0 12px; }
  .card { background:#171a21; border:1px solid #232833; border-radius:14px;
          padding:18px 20px; margin-bottom:12px; }
+ .hgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+ .hgrid .card { margin-bottom:0; }
+ @media (max-width:760px) { .hgrid { grid-template-columns:1fr; } }
  .phase { display:flex; align-items:center; gap:9px; font-size:16px; font-weight:600; }
- .dot { width:9px; height:9px; border-radius:50%; background:#6b7686;
-        box-shadow:0 0 0 4px rgba(255,255,255,.04); }
+ .dot, .sdot { width:9px; height:9px; border-radius:50%; background:#6b7686;
+        box-shadow:0 0 0 4px rgba(255,255,255,.04); flex:none; }
+ .sdot.ok { background:#4cc38a; }
+ .sdot.bad { background:#e5484d; }
  .model { color:#9aa4b2; font-size:13px; margin-top:4px; }
  .row { display:flex; justify-content:space-between; align-items:baseline;
         margin:14px 0 6px; font-variant-numeric:tabular-nums; }
@@ -209,9 +450,31 @@ PAGE = """<!doctype html>
              letter-spacing:.05em; }
  .foot { display:flex; justify-content:space-between; color:#6b7686; font-size:12px; }
  canvas { width:100%; height:46px; display:block; margin-top:12px; }
+ .svc, .mrow, .trow { display:flex; align-items:center; gap:9px;
+        padding:7px 0; border-bottom:1px solid #1e222b; }
+ .svc:last-child, .mrow:last-child, .trow:last-child { border-bottom:0; }
+ .sname { font-weight:600; }
+ .sdet { color:#8b95a5; font-size:12.5px; margin-left:auto; text-align:right; }
+ .svc a, .links a { color:#7cb3ff; text-decoration:none; }
+ .svc a { margin-left:10px; }
+ .mmeta { margin-left:auto; color:#8b95a5; font-size:12.5px; }
+ .badge { display:inline-block; padding:1px 8px; border-radius:20px; font-size:11.5px;
+          background:#1d3a2c; color:#6fd7a1; margin-left:8px; }
+ .kv { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13px; }
+ .kv i { font-style:normal; color:#7c8698; }
+ .muted { color:#7c8698; font-size:12.5px; }
+ .timer { margin-top:10px; padding-top:10px; border-top:1px solid #1e222b; }
+ .trow { font-size:12.5px; padding:4px 0; border-bottom:0; }
+ .trow span:first-child { color:#b6bfcc; }
+ .trow span:last-child { margin-left:auto; color:#8b95a5; }
+ .links { display:flex; gap:10px; flex-wrap:wrap; }
+ .links a { background:#12151b; border:1px solid #232833; border-radius:10px;
+            padding:9px 12px; }
+ .warn { color:#e0b341; font-size:12.5px; }
+ .bad { color:#e5484d; }
 </style></head>
 <body><div class="wrap">
- <h1>linuxmintai · состояние</h1>
+ <h1>linuxmintai · хаб</h1>
  <div class="card">
    <div class="phase"><div class="dot" id="dot"></div><span id="phase">…</span></div>
    <div class="model" id="model">подключение к bastion…</div>
@@ -231,7 +494,15 @@ PAGE = """<!doctype html>
    <div class="metric"><i>переключений</i><b id="swaps">—</b></div>
    <div class="metric"><i>swap</i><b id="swap">—</b></div>
  </div></div>
- <div class="foot"><span id="stall"></span><span id="age"></span></div>
+ <div class="hgrid">
+   <div class="card"><h2>Стек</h2><div id="services" class="muted">…</div></div>
+   <div class="card"><h2>Модели</h2><div id="models" class="muted">…</div></div>
+   <div class="card"><h2>Бэкапы</h2><div id="backups" class="muted">…</div></div>
+   <div class="card"><h2>Ресурсы</h2><div id="resources" class="muted">…</div></div>
+   <div class="card"><h2>Внимание</h2><div id="failed" class="muted">…</div></div>
+   <div class="card"><h2>Ссылки</h2><div id="links" class="links">…</div></div>
+ </div>
+ <div class="foot" style="margin-top:12px"><span id="stall"></span><span id="age"></span></div>
 </div>
 <script>
 const COLORS = {
@@ -243,7 +514,34 @@ const COLORS = {
 };
 const history = [];
 const $ = id => document.getElementById(id);
-function bar(el, ratio) {
+const esc = s => String(s).replace(/[&<>"']/g, c => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+}[c]));
+function fmtSize(bytes) {
+  if (bytes == null) return "—";
+  const gb = bytes / 1e9;
+  return gb >= 1 ? gb.toFixed(2) + " GB" : Math.round(bytes / 1e6) + " MB";
+}
+function fmtDate(sec) {
+  if (!sec) return "—";
+  return new Date(sec * 1000).toLocaleString("ru-RU",
+    {day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"});
+}
+function fmtRel(sec) {
+  if (!sec) return "";
+  const d = sec - Date.now() / 1000, a = Math.abs(d);
+  let v, u;
+  if (a < 3600) { v = Math.round(a / 60); u = "мин"; }
+  else if (a < 86400) { v = (a / 3600).toFixed(1); u = "ч"; }
+  else { v = (a / 86400).toFixed(1); u = "д"; }
+  return d >= 0 ? `через ${v} ${u}` : `${v} ${u} назад`;
+}
+function fmtUptime(sec) {
+  if (sec == null) return "—";
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600);
+  return d ? `${d} д ${h} ч` : `${h} ч`;
+}
+function bar(el, ratio, warn, bad) {
   el.style.width = Math.max(0, Math.min(100, ratio * 100)) + "%";
   el.style.background = ratio > .92 ? "#e5484d" : ratio > .8 ? "#e0b341" : "#4cc38a";
 }
@@ -289,6 +587,73 @@ function render(s) {
   if (g.util_pct != null) { history.push(g.util_pct); if (history.length > 90) history.shift(); }
   spark();
 }
+function renderHub(d) {
+  $("services").innerHTML = d.services.map(s =>
+    `<div class="svc"><span class="sdot ${s.ok ? "ok" : "bad"}"></span>` +
+    `<span class="sname">${esc(s.id)}</span>` +
+    `<span class="sdet">${esc(s.detail || "")}</span>` +
+    `<a href="${esc(s.url)}" target="_blank" rel="noreferrer">↗</a></div>`).join("");
+
+  $("models").innerHTML = d.models.length ? d.models.map(m =>
+    `<div class="mrow"><span>${esc(m.name)}</span>` +
+    `<span class="mmeta">${m.size_gb} GB` +
+    (m.loaded ? `<span class="badge">загружена</span>` : "") + `</span></div>`).join("")
+    : `<span class="bad">модели недоступны${d.models_error ? ": " + esc(d.models_error) : ""}</span>`;
+
+  const b = d.backups || {};
+  if (!b.ok) {
+    $("backups").innerHTML = `<span class="bad">хранилище недоступно: ${esc(b.error || "")}</span>`;
+  } else if (!b.runs) {
+    $("backups").innerHTML = "снимков пока нет";
+  } else {
+    const c = b.counts || {};
+    const counts = ["user", "chat", "model", "tool", "function"]
+      .filter(k => c[k] != null).map(k => `${k} ${c[k]}`).join(" · ");
+    let html = `<div class="kv">` +
+      `<i>снимок</i><span>${esc(b.latest)}` +
+      `<span class="badge" style="background:#1e2a3a;color:#7cb3ff">${b.runs} всего</span></span>` +
+      `<i>дата</i><span>${esc(b.date || "—")}</span>` +
+      `<i>размер</i><span>${fmtSize(b.size_bytes)} · ${b.files} файлов</span>` +
+      `<i>контроль</i><span class="${b.sums ? "" : "warn"}">` +
+      (b.sums ? "SHA256SUMS на месте" : "SHA256SUMS отсутствует") + `</span>` +
+      `<i>состав</i><span>${esc(counts || "—")}</span></div>`;
+    const timers = (d.timers || []).filter(t => t.present);
+    if (timers.length) {
+      html += `<div class="timer">` + timers.map(t =>
+        `<div class="trow"><span>${esc(t.unit.replace("locallmstack-", "").replace(".timer", ""))}</span>` +
+        `<span>${t.next ? "след. " + fmtDate(t.next) + " (" + fmtRel(t.next) + ")" :
+          "след. —"}</span></div>`).join("") + `</div>`;
+    } else {
+      html += `<div class="timer muted">таймеры недоступны</div>`;
+    }
+    $("backups").innerHTML = html;
+  }
+
+  const r = d.resources || {};
+  const load = (r.load || [])[0];
+  const disk = (r.disks || []).find(x => x.target === "/") || (r.disks || [])[0];
+  $("resources").innerHTML = `<div class="grid">` +
+    `<div class="metric"><i>load 1m</i><b>${load != null ? load.toFixed(2) : "—"}</b></div>` +
+    `<div class="metric"><i>RAM</i><b>${r.mem_pct != null ? r.mem_pct + "%" : "—"}</b></div>` +
+    `<div class="metric"><i>диск /</i><b>${disk ? disk.pct + "%" : "—"}</b></div>` +
+    `<div class="metric"><i>GPU</i><b>${r.gpu_pct ?? "—"}${r.gpu_pct != null ? "%" : ""}</b></div>` +
+    `<div class="metric"><i>темп.</i><b>${r.gpu_temp ?? "—"}${r.gpu_temp != null ? "°C" : ""}</b></div>` +
+    `<div class="metric"><i>uptime</i><b>${fmtUptime(r.uptime_s)}</b></div>` +
+    `</div>` + (r.ok ? "" : `<div class="muted" style="margin-top:8px">` +
+      `hostagent недоступен: ${esc(r.error || "")}</div>`);
+
+  const failed = [...(d.failed?.system || []), ...(d.failed?.user || [])];
+  $("failed").innerHTML = failed.length ? failed.map(f => {
+    const parts = f.trim().split(/\\s+/);
+    const unit = parts[0] || f;
+    const state = parts[2] || "failed";
+    const benign = unit.startsWith("casper-md5check") ? " (безвреден на Mint)" : "";
+    return `<div class="warn">${esc(unit)} — ${esc(state)}${benign}</div>`;
+  }).join("") : "сбоев нет";
+
+  $("links").innerHTML = (d.links || []).map(l =>
+    `<a href="${esc(l.url)}" target="_blank" rel="noreferrer">${esc(l.title)} ↗</a>`).join("");
+}
 async function tick() {
   try {
     const r = await fetch("/api/status", {cache: "no-store"});
@@ -298,7 +663,15 @@ async function tick() {
   }
   setTimeout(tick, 1000);
 }
+async function tickHub() {
+  try {
+    const r = await fetch("/api/hub", {cache: "no-store"});
+    renderHub(await r.json());
+  } catch (e) {}
+  setTimeout(tickHub, 6000);
+}
 tick();
+tickHub();
 </script>
 </body></html>
 """
@@ -319,6 +692,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE, "text/html; charset=utf-8")
         elif self.path == "/api/status":
             self._send(200, json.dumps(current(), ensure_ascii=False), "application/json; charset=utf-8")
+        elif self.path == "/api/hub":
+            self._send(200, json.dumps(current_hub(), ensure_ascii=False), "application/json; charset=utf-8")
         elif self.path == "/api/text":
             self._send(200, as_text(current()), "text/plain; charset=utf-8")
         else:
@@ -329,12 +704,14 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global BASTION
+    global BASTION, BACKUP_RUNS
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--bastion", default=BASTION)
+    ap.add_argument("--backup-dir", default=BACKUP_RUNS)
     args = ap.parse_args()
     BASTION = args.bastion
+    BACKUP_RUNS = args.backup_dir
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print(f"linuxmintai status: http://127.0.0.1:{args.port}/", flush=True)
     srv.serve_forever()
