@@ -160,22 +160,23 @@ else:
     src = src.replace('gpu:\n', 'gpu:\n  hardware_margin_gb: 0.9\n', 1)
 # 3) записи моделей: vram_gb — замеренный runtime-VRAM, не размер файла.
 #    Завышение запирает модель в очереди (nvidia-smi backstop), занижение — риск OOM.
+#    default_num_ctx — потолок промпта; больше 16384 уводит слои в CPU.
 models = {
-    "qwen3:8b": ("5.1", "general"),
-    "qwen3.5:9b": ("5.2", "general"),
-    "crewai-qwen3-8b": ("5.1", "agent"),
+    "qwen3:8b": ("5.1", 4096, "general"),
+    "qwen3.5:9b": ("5.5", 16384, "general"),
+    "crewai-qwen3-8b": ("5.1", 4096, "agent"),
 }
-for name, (gb, tag) in models.items():
-    pattern = re.compile(r'("' + re.escape(name) + r'":\s*\n\s*vram_gb:\s*)[0-9.]+')
-    src = pattern.sub(lambda m: m.group(1) + gb, src)
+for name, (gb, ctx, tag) in models.items():
+    pattern = re.compile(r'("' + re.escape(name) + r'":\s*\n\s*vram_gb:\s*)[0-9.]+([^\n]*\n\s*default_num_ctx:\s*)[0-9]+')
+    src = pattern.sub(lambda m: m.group(1) + gb + m.group(2) + str(ctx), src)
 if re.search(r'^models:\s*\{\}', src, flags=re.M):
     src = re.sub(r'^models:\s*\{\}', 'models:', src, flags=re.M)
 block = ""
-for name, (gb, tag) in models.items():
+for name, (gb, ctx, tag) in models.items():
     if f'"{name}"' not in src:
         block += (f'\n  "{name}":\n'
                   f'    vram_gb: {gb}\n'
-                  f'    default_num_ctx: 4096\n'
+                  f'    default_num_ctx: {ctx}\n'
                   f'    tags: ["{tag}"]\n')
 if 'models:' not in src:
     src += '\nmodels:\n'
@@ -296,12 +297,12 @@ if [ "$WITH_WEBUI" = 1 ]; then
       --add-host=host.docker.internal:host-gateway \
       -p 127.0.0.1:3000:8080 \
       -v open-webui:/app/backend/data \
-      -e ENABLE_OLLAMA_API=false \
-      -e OPENAI_API_BASE_URL=http://host.docker.internal:11434/v1 \
-      -e OPENAI_API_KEY=lmintai \
+      -e ENABLE_OLLAMA_API=true \
+      -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+      -e SCARF_NO_ANALYTICS=true -e DO_NOT_TRACK=true -e ANONYMIZED_TELEMETRY=false \
       ghcr.io/open-webui/open-webui:main
     ok "Open WebUI: http://127.0.0.1:3000 (первый вход создаёт администратора)"
-    echo "[HINT] в Settings -> Model: max_tokens >= 2048, num_ctx 4096 (thinking-модели, иначе пустые ответы)"
+    echo "[HINT] в Settings -> Model: max_tokens >= 2048; num_ctx не трогать — его задаёт bastion"
   fi
 fi
 
