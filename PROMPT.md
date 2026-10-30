@@ -96,6 +96,8 @@ WantedBy=default.target
 EOF
 systemctl --user daemon-reload && systemctl --user enable --now bastion
 
+Юнит живёт в сессии пользователя — после logout он гаснет. Чтобы bastion переживал выходе из сессии (и жил без открытой сессии вовсе), включите linger: `loginctl show-user $USER | grep Linger` должен показать `Linger=yes`; иначе `pkexec loginctl enable-linger $USER` (или запустите `install.sh` — он делает это сам).
+
 Конфиг `~/.config/bastion/broker.yaml`: `bastion --init-config` создаёт файл с ОПАСНЫМИ дефолтами, их надо исправить руками (install.sh делает это сам; при ручной настройке проверь каждое значение):
 - `server.host: "127.0.0.1"` — init-config пишет `0.0.0.0`, это утечка брокера в LAN;
 - `gpu.total_vram_gb: 8` — явным числом! Auto-detect (`0`) не работает в systemd user-сервисе: бюджет VRAM становится 0 и любой запрос получает 504;
@@ -168,12 +170,9 @@ uv venv ~/ai-workspace/venv
 
 Ожидаемый финал: отчёт агента (он сам вызывает `free -h` через BashTool) и строка `Ответила модель: [local:ollama] crewai-qwen3-8b:latest | VRAM ~5973/8192 MB`. Первый прогон включает загрузку модели на GPU (~20 s), дальше модель резидентна 30 мин (keep_alive).
 
-Шаг 8: Open Interpreter (приватная альтернатива для shell-задач).
+Шаг 8: Open Interpreter — НЕ suitable на этом железе (проверено боём 2026-10-30).
 
-curl -fsSL https://www.openinterpreter.com/install | sh
-interpreter --local --os --model ollama/crewai-qwen3-8b
-
-Проверь, что он ходит на 11434 (bastion), а не напрямую на 11435. ПОДТВЕРЖДЕНИЯ ОПАСНЫХ КОМАНД НЕ ОТКЛЮЧАТЬ.
+Современный `interpreter` (0.0.56, standalone-дистрибутив на codex-движке) НЕЛЬЗЯ использовать с локальной 8B-моделью на 8 GB VRAM: его внутренний системный промпт + схемы инструментов занимают ~11 900 токенов и не сокращаются ни `base_instructions`-оверрайдом, ни отключением фич (`features.*`, `include_environment_context`). Уже первый запрос пробивает любой контекст, влезающий в GPU: KV-кэш q8_0 при 8192 токенах ~2.6 GB, итого веса 5.4 + 2.6 ≈ 8.0 GB — на пределе; для 12k+ контекста нужно >9 GB VRAM, часть слоёв сползает на CPU, скорость падает в разы. Для агентных системных задач используйте CrewAI-агента из шага 7 (лёгкий промпт, ctx 8192, ~58 ток/с). Если Open Interpreter всё же нужен — только как интерактивная игрушка с моделью, у которой бюджет VRAM позволяет большой контекст, либо на другом железе. Синтаксис нового CLI (для справки): кастомный OpenAI-совместимый провайдер задаётся через `-c model_provider='"имя"' -c 'model_providers.имя={name="...", base_url="http://127.0.0.1:11434/v1", wire_api="chat", env_key="ПЕРЕМЕННАЯ", supports_websockets=false}'` (имя `ollama` — зарезервировано, не переопределяется; env_key обязан существовать, значение может быть заглушкой); `--oss --local-provider ollama` ходит напрямую на 11435, минуя bastion, — так делать нельзя.
 
 Шаг 9: Политика и безопасность (local-only).
 

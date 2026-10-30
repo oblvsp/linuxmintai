@@ -165,6 +165,12 @@ PYEOF
 
 systemctl --user daemon-reload
 systemctl --user enable bastion >/dev/null 2>&1
+# bastion — user-юнит; без linger он гаснет после logout
+if [ "$(loginctl show-user "$USER" 2>/dev/null | grep -c '^Linger=yes')" != 1 ]; then
+  if $SUDO loginctl enable-linger "$USER" 2>/dev/null; then ok "linger включён — bastion переживёт logout"; else echo "[WARN] linger не включён (выполните: pkexec loginctl enable-linger $USER)"; fi
+else
+  skip "linger уже включён"
+fi
 systemctl --user restart bastion
 sleep 3
 systemctl --user is-active --quiet bastion || die "bastion не запустился: journalctl --user -u bastion"
@@ -220,8 +226,10 @@ for f in config_llm.py bash_tool.py agent_demo.py; do
 done
 
 # ---------- Шаг 8: Open Interpreter ----------
-if command -v interpreter >/dev/null; then skip "interpreter установлен"; else
-  echo "[SKIP] Open Interpreter не установлен автоматически — см. PROMPT.md шаг 8 (установка из интернета, решает пользователь)"
+if command -v interpreter >/dev/null; then
+  echo "[WARN] interpreter 0.0.56 установлен, но на 8 GB VRAM непригоден (системный промпт движка ~11.9k токенов, см. PROMPT.md шаг 8) — основной путь: CrewAI-агент"
+else
+  echo "[SKIP] Open Interpreter не устанавливается: codex-движок 0.0.56 требует контекст, не влезающий в 8 GB VRAM (PROMPT.md шаг 8)"
 fi
 
 # ---------- Финальная проверка ----------
