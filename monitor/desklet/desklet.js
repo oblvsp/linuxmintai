@@ -6,6 +6,18 @@ const Settings = imports.ui.settings;
 
 const STATUS_URL = "http://127.0.0.1:11436/api/text";
 
+// Токены :root из status_server.py и stylesheet.css. Цвета задаём inline:
+// тема Cinnamon перебивает color из stylesheet.css.
+const PALETTE = {
+    text: "#e6e8eb",
+    text2: "#b8bfcc",
+    muted: "#9aa4b2",
+    ghost: "#6b7686",
+    accent: "#4cc38a",
+    warn: "#e0b341",
+    bad: "#e5484d"
+};
+
 // GJS отдаёт байты curl как есть; String.fromCharCode трактует их как Latin-1,
 // поэтому UTF-8 (кириллица, «·», «°») декодируем вручную.
 function utf8(bytes) {
@@ -41,13 +53,36 @@ LmintaiDesklet.prototype = {
         this.settings.bind("interval", "interval", this._reschedule);
 
         this._box = new St.BoxLayout({ vertical: true, style_class: "lmintai-box" });
+
+        this._head = new St.BoxLayout({ vertical: false, style_class: "lmintai-head" });
+        this._dot = new St.Label({
+            text: "●",
+            style_class: "lmintai-dot",
+            style: "font-size: 10px; color: " + PALETTE.ghost + ";"
+        });
+        this._phase = new St.Label({
+            text: "",
+            style_class: "lmintai-phase",
+            style: "font-size: 13px; font-weight: bold; color: " + PALETTE.text + ";"
+        });
+        this._model = new St.Label({
+            text: "",
+            style_class: "lmintai-model",
+            style: "font-size: 12px; color: " + PALETTE.muted + ";"
+        });
+        this._head.add(this._dot);
+        this._head.add(this._phase);
+        this._head.add(this._model);
+        this._box.add(this._head);
+
         this._labels = [];
-        for (let i = 0; i < 4; i++) {
-            // Цвета задаём inline: тема Cinnamon перебивает color из stylesheet.css.
-            let style = i === 0
-                ? "font-size: 13px; font-weight: bold; color: #8b95a5; margin-bottom: 2px;"
-                : "font-size: 11px; color: #b8bfcb; font-family: 'DejaVu Sans Mono', monospace;";
-            let label = new St.Label({ text: "", style: style });
+        for (let i = 0; i < 3; i++) {
+            let label = new St.Label({
+                text: "",
+                style_class: "lmintai-line",
+                style: "font-size: 11px; color: " + PALETTE.text2 +
+                       "; font-family: 'DejaVu Sans Mono', monospace;"
+            });
             this._labels.push(label);
             this._box.add(label);
         }
@@ -80,21 +115,25 @@ LmintaiDesklet.prototype = {
             // сервер не запущен — оставляем подсказку
         }
         for (let i = 0; i < this._labels.length; i++) {
-            this._labels[i].set_text(lines[i] || "");
+            this._labels[i].set_text(lines[i + 1] || "");
         }
         this._colorize(lines[0] || "");
     },
 
     _colorize: function(head) {
-        let color = "#8b95a5";
+        let color = PALETTE.ghost;
         if (head.indexOf("загрузка") === 0 || head.indexOf("очередь") === 0) {
-            color = "#e0b341";
+            color = PALETTE.warn;
         } else if (head.indexOf("генерация") === 0) {
-            color = "#4cc38a";
+            color = PALETTE.accent;
         } else if (head.indexOf("bastion") === 0 || head.indexOf("нет данных") === 0) {
-            color = "#e5484d";
+            color = PALETTE.bad;
         }
-        this._labels[0].style = "font-size: 13px; font-weight: bold; margin-bottom: 2px; color: " + color + ";";
+        this._dot.style = "font-size: 10px; color: " + color + ";";
+
+        let sep = head.indexOf(" · ");
+        this._phase.set_text(sep >= 0 ? head.slice(0, sep) : head);
+        this._model.set_text(sep >= 0 ? head.slice(sep + 3) : "");
     },
 
     on_desklet_removed: function() {

@@ -139,6 +139,8 @@ Read-only панель на `127.0.0.1:11436`: живые метрики раз 
 
 **Desklet Cinnamon** читает `/api/text` каждые 2 секунды (интервал меняется в настройках): ПКМ по рабочему столу → **Desklets** → «linuxmintai · состояние». После правки `desklet.js` оболочку нужно перезапустить: `cinnamon --replace`.
 
+Палитра общая: токены `:root` в `status_server.py` и те же значения в `monitor/desklet/stylesheet.css` — фон, карточки, текст, акцент и сигнальные цвета у панели и desklet совпадают.
+
 Исходники: [`monitor/status_server.py`](monitor/status_server.py) (stdlib, без зависимостей), [`monitor/hub_app.py`](monitor/hub_app.py), [`monitor/lmintai-hub.desktop`](monitor/lmintai-hub.desktop), [`monitor/desklet/`](monitor/desklet/).
 
 ## Агент

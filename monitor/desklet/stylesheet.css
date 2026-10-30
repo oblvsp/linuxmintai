@@ -1,19 +1,24 @@
+/* Палитра — токены :root из status_server.py. GTK3 CSS не знает custom
+   properties, поэтому значения продублированы; менять синхронно. */
 .lmintai-box {
     padding: 12px 16px;
-    border-radius: 12px;
-    background-color: rgba(20, 22, 27, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    background-color: rgba(23, 26, 33, 0.94);   /* --surface */
+    border: 1px solid rgba(35, 40, 51, 0.95);   /* --line */
 }
 
-.lmintai-phase {
-    font-size: 13px;
-    font-weight: bold;
-    color: #8b95a5;
-    padding-bottom: 2px;
+.lmintai-head {
+    spacing: 7px;
+    margin-bottom: 7px;
 }
+
+.lmintai-dot { font-size: 10px; color: #6b7686; }                        /* --ghost */
+.lmintai-phase { font-size: 13px; font-weight: bold; color: #e6e8eb; }   /* --text */
+.lmintai-model { font-size: 12px; color: #9aa4b2; }                      /* --muted */
 
 .lmintai-line {
     font-size: 11px;
-    color: #b8bfcb;
+    color: #b8bfcc;                                                      /* --text-2 */
     font-family: "DejaVu Sans Mono", monospace;
+    margin-top: 2px;
 }

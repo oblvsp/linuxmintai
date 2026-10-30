@@ -274,6 +274,7 @@ curl -s http://127.0.0.1:11436/api/text
 - у bastion НЕТ CORS-заголовков: браузерная страница с :3000 не может читать :11434 напрямую, поэтому панель опрашивает bastion на сервере, а desklet читает `/api/text` через curl;
 - Cinnamon кэширует JS-модуль desklet'а: после правки `desklet.js` нужен `cinnamon --replace` (окна приложений сохраняются);
 - GJS трактует байты curl как Latin-1: в `desklet.js` есть ручной UTF-8 декодер, иначе кириллица превращается в `Ð¾ÑÐµÑ€ÐµÐ´Ñ`;
-- тема Cinnamon перебивает `color` из `stylesheet.css` — цвета текста заданы inline.
+- тема Cinnamon перебивает `color` из `stylesheet.css` — цвета текста заданы inline;
+- палитра общая: токены `:root` в `status_server.py`, те же значения — в `desklet/stylesheet.css` и `PALETTE` в `desklet.js`; GTK3 CSS не знает custom properties, поэтому синхронизировать вручную.
 
 Финальная проверка: `bastion --validate` (0 failed), `curl -s localhost:11434/broker/status | python3 -m json.tool` (живая телеметрия), при установленной панели `curl -s localhost:11436/api/status`, прогон `agent_demo.py` с корректной строкой модели, `earlyoom` активен (`systemctl status earlyoom`). Сообщи статус каждого компонента и результат тестового вызова.
