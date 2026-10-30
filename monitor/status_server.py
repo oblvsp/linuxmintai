@@ -4,7 +4,9 @@
     python3 status_server.py [--port 11436] [--bastion http://127.0.0.1:11434]
 
 Эндпоинты:
-    /            HTML-хаб: живая фаза модели + стек/модели/бэкапы/ресурсы
+    /            выбор вёрстки по ориентации окна (портрет → /v1, альбом → /v2)
+    /v1          вертикальная вёрстка под портретный экран 1024×1280
+    /v2          широкий пульт под основной экран 1920×1080
     /api/status  JSON для дашборда и внешних потребителей (живые метрики)
     /api/hub     JSON сводки хаба (стек, модели, бэкапы, сбои)
     /api/text    4 строки текста для desklet/Conky
@@ -18,6 +20,7 @@ import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
 
 BASTION = "http://127.0.0.1:11434/broker/status"
 PORT = 11436
@@ -421,35 +424,40 @@ PAGE = """<!doctype html>
  * { box-sizing: border-box; }
  body { margin:0; background:#0f1115; color:#e6e8eb;
         font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
- .wrap { max-width:980px; margin:0 auto; padding:28px 20px 40px; }
- h1 { font-size:15px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
-      color:#8b95a5; margin:0 0 16px; }
+ .wrap { margin:0 auto; }
+ header { display:flex; align-items:center; gap:12px; padding:18px 0 14px; }
+ h1 { font-size:14px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+      color:#8b95a5; margin:0; }
  h2 { font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
       color:#7c8698; margin:0 0 12px; }
+ .switch { margin-left:auto; display:flex; gap:3px; background:#171a21;
+           border:1px solid #232833; border-radius:9px; padding:3px; }
+ .switch a { color:#8b95a5; text-decoration:none; font-size:12px; padding:4px 10px;
+             border-radius:6px; white-space:nowrap; }
+ .switch a.on { background:#232833; color:#e6e8eb; }
  .card { background:#171a21; border:1px solid #232833; border-radius:14px;
-         padding:18px 20px; margin-bottom:12px; }
- .hgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
- .hgrid .card { margin-bottom:0; }
- @media (max-width:760px) { .hgrid { grid-template-columns:1fr; } }
- .phase { display:flex; align-items:center; gap:9px; font-size:16px; font-weight:600; }
+         padding:16px 18px; }
+ .phase { display:flex; align-items:center; gap:9px; font-size:20px; font-weight:600; }
  .dot, .sdot { width:9px; height:9px; border-radius:50%; background:#6b7686;
         box-shadow:0 0 0 4px rgba(255,255,255,.04); flex:none; }
  .sdot.ok { background:#4cc38a; }
  .sdot.bad { background:#e5484d; }
- .model { color:#9aa4b2; font-size:13px; margin-top:4px; }
+ .model { color:#9aa4b2; font-size:13.5px; margin-top:4px; }
  .row { display:flex; justify-content:space-between; align-items:baseline;
         margin:14px 0 6px; font-variant-numeric:tabular-nums; }
  .row span:last-child { color:#9aa4b2; font-size:12.5px; }
  .bar { height:8px; background:#232833; border-radius:6px; overflow:hidden; }
  .fill { height:100%; width:0; border-radius:6px; transition:width .35s ease; }
- .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
- .metric { background:#12151b; border-radius:10px; padding:10px 12px; }
- .metric b { display:block; font-size:18px; font-weight:600; font-variant-numeric:tabular-nums;
+ .metrics { display:grid; gap:8px; margin-top:14px; }
+ .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+ .metric { background:#12151b; border-radius:10px; padding:9px 11px; }
+ .metric b { display:block; font-size:20px; font-weight:600; font-variant-numeric:tabular-nums;
              white-space:nowrap; }
- .metric i { font-style:normal; color:#7c8698; font-size:11.5px; text-transform:uppercase;
+ .metric i { font-style:normal; color:#7c8698; font-size:11px; text-transform:uppercase;
              letter-spacing:.05em; }
- .foot { display:flex; justify-content:space-between; color:#6b7686; font-size:12px; }
- canvas { width:100%; height:46px; display:block; margin-top:12px; }
+ .foot { display:flex; justify-content:space-between; color:#6b7686; font-size:12px;
+         padding:10px 2px 0; }
+ canvas { width:100%; height:56px; display:block; margin-top:12px; }
  .svc, .mrow, .trow { display:flex; align-items:center; gap:9px;
         padding:7px 0; border-bottom:1px solid #1e222b; }
  .svc:last-child, .mrow:last-child, .trow:last-child { border-bottom:0; }
@@ -472,37 +480,72 @@ PAGE = """<!doctype html>
             padding:9px 12px; }
  .warn { color:#e0b341; font-size:12.5px; }
  .bad { color:#e5484d; }
+
+ /* v1 — вертикальная вёрстка под портретный экран 1024×1280 */
+ .v1 .wrap { max-width:1024px; padding:0 18px 24px; }
+ .v1 .board { display:grid; grid-template-columns:1fr; gap:10px; }
+ .v1 .phase { font-size:23px; }
+ .v1 .model { font-size:14px; }
+ .v1 .metrics { grid-template-columns:repeat(3,1fr); }
+ .v1 .metric b { font-size:23px; }
+ .v1 canvas { height:64px; }
+ .v1 .svc, .v1 .mrow, .v1 .trow { padding:8px 0; font-size:14px; }
+
+ /* v2 — широкий пульт под основной экран 1920×1080 */
+ .v2 .wrap { max-width:1880px; padding:0 26px 20px; }
+ .v2 .board { display:grid; grid-template-columns:repeat(12,1fr); gap:12px;
+              align-items:start; }
+ .v2 .hero { grid-column:span 7; }
+ .v2 .c-svc { grid-column:span 5; }
+ .v2 .c-models, .v2 .c-backups, .v2 .c-res { grid-column:span 4; }
+ .v2 .c-failed { grid-column:span 8; }
+ .v2 .c-links { grid-column:span 4; }
+ .v2 .metrics { grid-template-columns:repeat(6,1fr); }
+ .v2 .phase { font-size:22px; }
+ .v2 .metric b { font-size:22px; }
+ @media (max-width:1200px) {
+   .v2 .board { grid-template-columns:1fr 1fr; }
+   .v2 .hero, .v2 .c-svc, .v2 .c-failed { grid-column:span 2; }
+   .v2 .c-models, .v2 .c-backups, .v2 .c-res, .v2 .c-links { grid-column:span 1; }
+ }
+ @media (max-width:760px) {
+   .v2 .board { grid-template-columns:1fr; }
+   .v2 .hero, .v2 .c-svc, .v2 .c-models, .v2 .c-backups, .v2 .c-res,
+   .v2 .c-failed, .v2 .c-links { grid-column:span 1; }
+ }
 </style></head>
-<body><div class="wrap">
- <h1>linuxmintai · хаб</h1>
- <div class="card">
+<body class="__CLS__"><div class="wrap">
+ <header><h1>linuxmintai · хаб</h1>
+   <nav class="switch">
+     <a href="/v1" class="__ON1__">вертикальная</a><a href="/v2" class="__ON2__">широкая</a>
+   </nav>
+ </header>
+ <div class="board">
+  <section class="card hero">
    <div class="phase"><div class="dot" id="dot"></div><span id="phase">…</span></div>
    <div class="model" id="model">подключение к bastion…</div>
    <div class="row"><span>VRAM</span><span id="vram-t">—</span></div>
    <div class="bar"><div class="fill" id="vram-b"></div></div>
    <div class="row"><span>RAM</span><span id="ram-t">—</span></div>
    <div class="bar"><div class="fill" id="ram-b"></div></div>
-   <canvas id="spark" width="620" height="46"></canvas>
+   <canvas id="spark"></canvas>
+   <div class="metrics">
+     <div class="metric"><i>GPU</i><b id="gpu">—</b></div>
+     <div class="metric"><i>температура</i><b id="temp">—</b></div>
+     <div class="metric"><i>очередь</i><b id="queue">—</b></div>
+     <div class="metric"><i>запросов</i><b id="req">—</b></div>
+     <div class="metric"><i>переключений</i><b id="swaps">—</b></div>
+     <div class="metric"><i>swap</i><b id="swap">—</b></div>
+   </div>
+  </section>
+  <section class="card c-svc"><h2>Стек</h2><div id="services" class="muted">…</div></section>
+  <section class="card c-models"><h2>Модели</h2><div id="models" class="muted">…</div></section>
+  <section class="card c-backups"><h2>Бэкапы</h2><div id="backups" class="muted">…</div></section>
+  <section class="card c-res"><h2>Ресурсы</h2><div id="resources" class="muted">…</div></section>
+  <section class="card c-failed"><h2>Внимание</h2><div id="failed" class="muted">…</div></section>
+  <section class="card c-links"><h2>Ссылки</h2><div id="links" class="links">…</div></section>
  </div>
- <div class="card"><div class="grid">
-   <div class="metric"><i>GPU</i><b id="gpu">—</b></div>
-   <div class="metric"><i>температура</i><b id="temp">—</b></div>
-   <div class="metric"><i>очередь</i><b id="queue">—</b></div>
- </div></div>
- <div class="card"><div class="grid">
-   <div class="metric"><i>запросов</i><b id="req">—</b></div>
-   <div class="metric"><i>переключений</i><b id="swaps">—</b></div>
-   <div class="metric"><i>swap</i><b id="swap">—</b></div>
- </div></div>
- <div class="hgrid">
-   <div class="card"><h2>Стек</h2><div id="services" class="muted">…</div></div>
-   <div class="card"><h2>Модели</h2><div id="models" class="muted">…</div></div>
-   <div class="card"><h2>Бэкапы</h2><div id="backups" class="muted">…</div></div>
-   <div class="card"><h2>Ресурсы</h2><div id="resources" class="muted">…</div></div>
-   <div class="card"><h2>Внимание</h2><div id="failed" class="muted">…</div></div>
-   <div class="card"><h2>Ссылки</h2><div id="links" class="links">…</div></div>
- </div>
- <div class="foot" style="margin-top:12px"><span id="stall"></span><span id="age"></span></div>
+ <div class="foot"><span id="stall"></span><span id="age"></span></div>
 </div>
 <script>
 const COLORS = {
@@ -547,7 +590,12 @@ function bar(el, ratio, warn, bad) {
 }
 function spark() {
   const c = $("spark"), ctx = c.getContext("2d");
-  const w = c.width, h = c.height;
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth || 600, h = c.clientHeight || 56;
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
   ctx.strokeStyle = "#232833"; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, h - 1); ctx.lineTo(w, h - 1); ctx.stroke();
@@ -677,6 +725,22 @@ tickHub();
 """
 
 
+def page(variant):
+    return (PAGE
+            .replace("__CLS__", variant)
+            .replace("__ON1__", "on" if variant == "v1" else "")
+            .replace("__ON2__", "on" if variant == "v2" else ""))
+
+
+AUTO_PAGE = """<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<title>linuxmintai · хаб</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script>location.replace(innerHeight > innerWidth ? "/v1" : "/v2");</script>
+</head><body style="margin:0;background:#0f1115"></body></html>
+"""
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code, body, ctype):
         data = body.encode("utf-8")
@@ -688,8 +752,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
-            self._send(200, PAGE, "text/html; charset=utf-8")
+        path = urlparse(self.path).path
+        if path in ("/", "/index.html"):
+            self._send(200, AUTO_PAGE, "text/html; charset=utf-8")
+        elif path in ("/v1", "/v2"):
+            self._send(200, page(path[1:]), "text/html; charset=utf-8")
         elif self.path == "/api/status":
             self._send(200, json.dumps(current(), ensure_ascii=False), "application/json; charset=utf-8")
         elif self.path == "/api/hub":
