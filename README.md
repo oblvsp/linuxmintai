@@ -33,6 +33,8 @@ flowchart LR
 | **CrewAI-агент** | `~/ai-workspace/venv` | — | агент с инструментом `bash` |
 | **Open WebUI** | Docker-контейнер | `127.0.0.1:3000` | чат-интерфейс (опционально) |
 | **Мост WebUI → bastion** | `bastion-webui-bridge` | — | route_localnet + DNAT на `docker0` |
+| **Панель состояния** | user-юнит `lmintai-status` | `127.0.0.1:11436` | GPU/VRAM/RAM и фаза LLM (опционально) |
+| **Desklet** | Cinnamon | — | те же данные на рабочем столе |
 
 Все слушатели — bastion, Ollama и WebUI — привязаны строго к loopback. Проверка после любой настройки:
 
@@ -44,9 +46,11 @@ ss -tlnp | grep -E ':1143[45]'   # в выводе должны быть тол�
 
 | Модель | Назначение | VRAM (ledger) | Примечание |
 |---|---|---|---|
-| `crewai-qwen3-8b` | агент с инструментами | 5.0 GB | Q4_K_M, ~5.4 GB на GPU после загрузки |
-| `qwen3.5:9b` | развёрнутые ответы без инструментов | 6.2 GB | загрузка на границе бюджета |
-| `qwen3:8b` | общие вопросы | 4.9 GB | базовая модель |
+| `crewai-qwen3-8b` | агент с инструментами | 5.1 GB | Q4_K_M, столько же занимает на GPU |
+| `qwen3.5:9b` | развёрнутые ответы без инструментов | 5.2 GB | загрузка 3–10 с, укладывается в бюджет |
+| `qwen3:8b` | общие вопросы | 5.1 GB | базовая модель |
+
+`vram_gb` — **замеренный runtime-VRAM** (`size_vram` из `/api/ps`), а не размер файла: размер файла занижает (не учитывает KV-кэш). Завышенное значение запирает модель в очереди по `nvidia-smi backstop`.
 
 Установщик импортирует только `crewai-qwen3-8b`; `qwen3:8b` и `qwen3.5:9b` ставятся обычным `ollama pull`.
 
@@ -69,6 +73,7 @@ ss -tlnp | grep -E ':1143[45]'   # в выводе должны быть тол�
 git clone https://github.com/oblvsp/linuxmintai && cd linuxmintai
 
 ./install.sh                # агентный стек: шаги 0–8
+./install.sh --with-monitor # + панель состояния и desklet (порт 11436)
 ./install.sh --with-webui   # то же + Open WebUI в Docker (шаг 10)
 ```
 
@@ -111,6 +116,24 @@ curl -s http://127.0.0.1:11434/v1/chat/completions \
   | jq -r '.choices[0].message.content'
 ```
 
+### Панель состояния
+
+Откройте <http://127.0.0.1:11436/> — отдельная вкладка рядом с чатом. Панель обновляется раз в секунду и показывает фазу работы LLM, а не только «модель загружена»:
+
+| Фаза | Когда |
+|---|---|
+| **простой** | запросов нет, модель резидентна |
+| **очередь** | запрос ждёт освобождения VRAM (имя модели — из `queue_by_model`) |
+| **загрузка модели** | идёт подкачка весов в VRAM |
+| **генерация** | модель отвечает |
+| **bastion недоступен** | брокер не отвечает, показана подсказка |
+
+Плюс VRAM/GPU/температура, RAM и swap, число запросов и переключений моделей. Данные склеиваются из `/broker/status` и `/proc`, сервис — 150 строк на stdlib без зависимостей (`lmintai-status.service`, loopback).
+
+Там же два API: `/api/status` (JSON) и `/api/text` (4 строки для desklet/Conky).
+
+**Desklet Cinnamon:** установите через `./install.sh --with-monitor`, затем ПКМ по рабочему столу → **Desklets** → «linuxmintai · состояние». Виджет читает `/api/text` каждые 2 секунды (интервал меняется в настройках). После правки `desklet.js` оболочку нужно перезапустить: `cinnamon --replace`.
+
 ## Подводные камни
 
 Всё ниже поймано при развёртывании, а не пересказано из документации.
@@ -118,10 +141,11 @@ curl -s http://127.0.0.1:11434/v1/chat/completions \
 | Симптом | Причина | Решение |
 |---|---|---|
 | 504 через 300 с, в логе `need 10240MB, available 0MB` | auto-detect VRAM возвращает 0 в systemd user-сервисе; неизвестная модель оценивается в 10 GB | `gpu.total_vram_gb: 8` явно + запись модели в `models:` |
-| Цикл `need 6246MB, available 6144MB` | `headroom_gb: 1.5` оставляет бюджет меньше резервации модели | `headroom_gb: 0.9` |
+| Очередь стоит 60 с, затем `nvidia-smi backstop: only X GB free, need Y + margin` | бюджет допуска задаёт `hardware_margin_gb` (по умолчанию 2 GB), а `headroom_gb` влияет только на `max_vram_gb`; `vram_gb` взят из размера файла и завышен | `hardware_margin_gb: 0.9` + `vram_gb` по замеру `size_vram` из `/api/ps` |
 | Пустой ответ, `done_reason=length` | thinking-модель съела весь бюджет на скрытое рассуждение | `max_tokens` ≥ 2048, `num_predict` ≥ 1024; `thinking:false` не помогает |
 | `ollama create` падает без внятной ошибки | сервис работает от `ollama`, а домашний каталог с GGUF — `0750` | импорт через временный `ollama serve` от пользователя + копирование `blobs/` и `manifests-v2/` |
 | WebUI: пустой список моделей, затем HTTP 400 | контейнер не видит loopback; bastion отбивает чужой Host | мост `route_localnet`/DNAT + `server.trusted_hosts` |
+| Desklet показывает `Ð¾ÑÐµÑÐµÐ´Ñ` | GJS трактует байты curl как Latin-1 | декодировать UTF-8 вручную (см. `monitor/desklet/desklet.js`) |
 | Демо пишет не ту модель, что загружена | поле `current_model` в `/broker/status` устаревает | читать `loaded_models` |
 
 Полные обоснования и команды — в [PROMPT.md](PROMPT.md), по шагам.
@@ -141,7 +165,7 @@ curl -s http://127.0.0.1:11434/v1/chat/completions \
 
 | Путь | Что это |
 |---|---|
-| [`install.sh`](install.sh) | идемпотентный установщик, флаги `--with-webui` |
+| [`install.sh`](install.sh) | идемпотентный установщик, флаги `--with-monitor`, `--with-webui` |
 | [`PROMPT.md`](PROMPT.md) | пошаговый промпт развёртывания: команды, обоснования, ловушки |
 | [`examples/config_llm.py`](examples/config_llm.py) | LLM-объекты CrewAI + `describe_now()` |
 | [`examples/bash_tool.py`](examples/bash_tool.py) | bash-инструмент с чёрным списком |
@@ -150,7 +174,10 @@ curl -s http://127.0.0.1:11434/v1/chat/completions \
 | [`examples/broker.yaml.example`](examples/broker.yaml.example) | эталонный конфиг bastion |
 | [`examples/bastion.service`](examples/bastion.service) | user-юнит брокера |
 | [`examples/bastion-webui-bridge.service`](examples/bastion-webui-bridge.service) | мост контейнер → loopback |
+| [`monitor/status_server.py`](monitor/status_server.py) | панель состояния: JSON + HTML на `:11436` |
+| [`monitor/lmintai-status.service`](monitor/lmintai-status.service) | user-юнит панели |
+| [`monitor/desklet/`](monitor/desklet/) | desklet Cinnamon (метаданные, JS, стили, настройки) |
 
 ## Статус
 
-Стек развёрнут и проверен в бою на целевой машине (Mint 22.3, i5-8400, 32 ГБ RAM, RTX 2070 SUPER 8 ГБ) 2026-10-30: демо-агент выполнял системные команды, модель резидентна на GPU, `bastion --validate` — 0 failed, WebUI отвечает по loopback. Известные ограничения: одна модель в VRAM одновременно, переключение между моделями занимает 20–60 с, контекст больше 8k не помещается.
+Стек развёрнут и проверен в бою на целевой машине (Mint 22.3, i5-8400, 32 ГБ RAM, RTX 2070 SUPER 8 ГБ) 2026-10-30: демо-агент выполнял системные команды, модель резидентна на GPU, `bastion --validate` — 0 failed, WebUI и панель состояния отвечают по loopback, desklet показывает живые данные. Известные ограничения: одна модель в VRAM одновременно, переключение между моделями занимает 5–15 с, контекст больше 8k не помещается.

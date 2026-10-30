@@ -12,25 +12,28 @@ server:
 
 gpu:
   total_vram_gb: 8    # явное значение: auto-detect не сработал в user-сервисе (бюджет=0 -> 504)
-  headroom_gb: 0.9
+  headroom_gb: 0.9    # только для max_vram_gb в /broker/status; на допуск НЕ влияет
+  hardware_margin_gb: 0.9  # реальный бюджет допуска: 8192-921=7270MB (дефолт 2.0 давал 6144)
   max_temperature_c: 83
 
 scheduler:
   cooldown_seconds: 2.0
   max_queue_size: 512
 
+# vram_gb — замеренный runtime-VRAM (size_vram из /api/ps), а не размер файла:
+# завышение запирает модель в очереди по nvidia-smi backstop, занижение рискует OOM.
 models:
   "qwen3:8b":
-    vram_gb: 4.9
+    vram_gb: 5.1
     default_num_ctx: 4096
     tags: ["general"]
 
   "qwen3.5:9b":
-    vram_gb: 6.2
+    vram_gb: 5.2
     default_num_ctx: 4096
     tags: ["general"]
 
   "crewai-qwen3-8b":
-    vram_gb: 5.0
+    vram_gb: 5.1
     default_num_ctx: 4096
     tags: ["agent"]

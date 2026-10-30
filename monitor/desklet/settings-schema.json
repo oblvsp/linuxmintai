@@ -1,0 +1,11 @@
+{
+    "interval": {
+        "type": "spinbutton",
+        "default": 2,
+        "min": 1,
+        "max": 10,
+        "units": "с",
+        "description": "Интервал обновления",
+        "tooltip": "Как часто опрашивать 127.0.0.1:11436/api/text"
+    }
+}

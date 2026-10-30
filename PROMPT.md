@@ -102,19 +102,20 @@ systemctl --user daemon-reload && systemctl --user enable --now bastion
 - `server.host: "127.0.0.1"` — init-config пишет `0.0.0.0`, это утечка брокера в LAN;
 - `server.trusted_hosts` — bastion включил DNS-rebinding guard: запросы с Host `host.docker.internal` (из контейнера WebUI) без этого имени в списке получают HTTP 400;
 - `gpu.total_vram_gb: 8` — явным числом! Auto-detect (`0`) не работает в systemd user-сервисе: бюджет VRAM становится 0 и любой запрос получает 504;
-- `gpu.headroom_gb: 0.9` — init-config пишет 6 из 8, тогда ни одна модель не проходит бюджет;
-- `models:` — записи `vram_gb` для КАЖДОЙ модели. Модель без записи получает дефолтную оценку 10 GB > бюджета 6.5 GB → вечно 504. Рабочий минимум:
+- `gpu.headroom_gb: 0.9` — init-config пишет 6 из 8. Это поле влияет ТОЛЬКО на `max_vram_gb` в `/broker/status`; допуск модели считает другое поле — `hardware_margin_gb`;
+- `gpu.hardware_margin_gb: 0.9` — реальный бюджет допуска: `8192 − 921 = 7270MB`. Дефолт 2.0 GB оставляет 6144MB, и модели с заявленными 6+ GB навсегда зависают в очереди;
+- `models:` — записи `vram_gb` для КАЖДОЙ модели. Значение — **замеренный runtime-VRAM** (`size_vram` из `/api/ps`), а не размер файла: размер файла занижен (не учитывает KV-кэш), а завышенная запись не проходит `nvidia-smi backstop` (`need X + margin`). Модель без записи получает дефолтную оценку 10 GB → вечно 504. Рабочий минимум:
 
 ollama: {host: "127.0.0.1", port: 11435}
 server: {host: "127.0.0.1", port: 11434, trusted_hosts: ["localhost", "127.0.0.1", "host.docker.internal"]}
-gpu: {total_vram_gb: 8, headroom_gb: 0.9, max_temperature_c: 83}
+gpu: {total_vram_gb: 8, headroom_gb: 0.9, hardware_margin_gb: 0.9, max_temperature_c: 83}
 scheduler: {cooldown_seconds: 2.0, max_queue_size: 512}
 models:
-  "qwen3:8b": {vram_gb: 4.9, default_num_ctx: 4096, tags: ["general"]}
-  "qwen3.5:9b": {vram_gb: 6.2, default_num_ctx: 4096, tags: ["general"]}
-  "crewai-qwen3-8b": {vram_gb: 5.0, default_num_ctx: 4096, tags: ["agent"]}
+  "qwen3:8b": {vram_gb: 5.1, default_num_ctx: 4096, tags: ["general"]}
+  "qwen3.5:9b": {vram_gb: 5.2, default_num_ctx: 4096, tags: ["general"]}
+  "crewai-qwen3-8b": {vram_gb: 5.1, default_num_ctx: 4096, tags: ["agent"]}
 
-После любой правки: `systemctl --user restart bastion && bastion --validate` (должно быть 0 failed). Диагностика 504: смотри `queue_by_model` и варнинг планировщика вида «need X MB, available Y MB» — это почти всегда отсутствующая/неверная запись в `models:`.
+После любой правки: `systemctl --user restart bastion && bastion --validate` (должно быть 0 failed). Диагностика: «need X MB, available Y MB» — неверная/отсутствующая запись в `models:` или мал `hardware_margin_gb`; «nvidia-smi backstop: only A GB free, need B + margin» — завышен `vram_gb` (сравни с `VRAM committed` в журнале и `size_vram` из `/api/ps`).
 
 Шаг 4: Модель crewai-qwen3-8b (только если MISSING).
 
@@ -203,6 +204,28 @@ docker run -d --name open-webui --restart unless-stopped \
 - контейнер не видит loopback-слушателя хоста: нужен systemd-юнит мостика (route_localnet на docker0 + DNAT 172.17.0.1:11434→127.0.0.1:11434 + ACCEPT с docker0) — эталон `examples/bastion-webui-bridge.service`, ставится в /etc/systemd/system и `systemctl enable --now`;
 - bastion включил DNS-rebinding guard: в `server.trusted_hosts` добавить `host.docker.internal`, иначе все запросы из контейнера получают 400.
 
-Настройки качества в WebUI (Settings → Model, для обеих thinking-моделей): `max_tokens` ≥ 2048, `num_ctx` 4096. Если бюджет токенов меньше, модель тратит его целиком на скрытое «размышление» и возвращает ПУСТЫЙ ответ (done_reason=length) — это и есть причина «непонятного вывода» в прошлых прогонов; `thinking:false` эти сборки не глушат. Быстрые агентные вопросы — crewai-qwen3-8b (≈250 токенов расхода), развёрнутые — qwen3.5:9b (≈900). Первый запрос к невыгруженной модели платит ~40–60 s загрузки (у qwen3.5:9b она на границе бюджета — headroom 0.9, см. шаг 3).
+Настройки качества в WebUI (Settings → Model, для обеих thinking-моделей): `max_tokens` ≥ 2048, `num_ctx` 4096. Если бюджет токенов меньше, модель тратит его целиком на скрытое «размышление» и возвращает ПУСТЫЙ ответ (done_reason=length) — это и есть причина «непонятного вывода» в прошлых прогонов; `thinking:false` эти сборки не глушат. Быстрые агентные вопросы — crewai-qwen3-8b (≈250 токенов расхода), развёрнутые — qwen3.5:9b (≈900). Первый запрос к невыгруженной модели платит 5–15 s (вытеснение + загрузка); в панели из шага 11 это фаза «загрузка модели».
 
-Финальная проверка: `bastion --validate` (0 failed), `curl -s localhost:11434/broker/status | python3 -m json.tool` (живая телеметрия), прогон `agent_demo.py` с корректной строкой модели, `earlyoom` активен (`systemctl status earlyoom`). Сообщи статус каждого компонента и результат тестового вызова.
+Шаг 11: Панель состояния и desklet (опционально, но сильно улучшает UX).
+
+Проблема, которую решает: пока модель грузится или стоит в очереди, WebUI показывает только спиннер — кажется, что всё зависло. Панель показывает фазу явно.
+
+mkdir -p ~/.local/share/cinnamon/desklets/lmintai-status@vsp
+cp monitor/status_server.py ~/ai-workspace/
+cp monitor/lmintai-status.service ~/.config/systemd/user/
+cp monitor/desklet/* ~/.local/share/cinnamon/desklets/lmintai-status@vsp/
+systemctl --user daemon-reload && systemctl --user enable --now lmintai-status
+curl -s http://127.0.0.1:11436/api/text
+
+Открыть http://127.0.0.1:11436/ (обновление раз в секунду). Desklet включается: ПКМ по рабочему столу → Desklets → «linuxmintai · состояние»; всё это делает `./install.sh --with-monitor`.
+
+Эндпоинты: `/api/status` (JSON) и `/api/text` (4 строки). Фаза вычисляется так: `inflight_models` непуст и модели нет в `loaded_models` → «загрузка»; `inflight` непуст при загруженной модели → «генерация»; `queue_depth > 0` → «очередь» (имя — из `queue_by_model`); иначе «простой».
+
+Тонкости:
+- сервер — только stdlib (`http.server`), слушает 127.0.0.1:11436, зависимостей нет;
+- у bastion НЕТ CORS-заголовков: браузерная страница с :3000 не может читать :11434 напрямую, поэтому панель опрашивает bastion на сервере, а desklet читает `/api/text` через curl;
+- Cinnamon кэширует JS-модуль desklet'а: после правки `desklet.js` нужен `cinnamon --replace` (окна приложений сохраняются);
+- GJS трактует байты curl как Latin-1: в `desklet.js` есть ручной UTF-8 декодер, иначе кириллица превращается в `Ð¾ÑÐµÑ€ÐµÐ´Ñ`;
+- тема Cinnamon перебивает `color` из `stylesheet.css` — цвета текста заданы inline.
+
+Финальная проверка: `bastion --validate` (0 failed), `curl -s localhost:11434/broker/status | python3 -m json.tool` (живая телеметрия), при установленной панели `curl -s localhost:11436/api/status`, прогон `agent_demo.py` с корректной строкой модели, `earlyoom` активен (`systemctl status earlyoom`). Сообщи статус каждого компонента и результат тестового вызова.

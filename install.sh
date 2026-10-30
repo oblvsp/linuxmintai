@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # linuxmintai — идемпотентный установщик локального AI-воркспейса (local-only).
 # Повторный запуск безопасен: каждый блок пропускается, если компонент уже настроен.
+# Флаги: --with-monitor (панель 127.0.0.1:11436 + desklet), --with-webui (Open WebUI).
 # Логика и обоснование каждого шага — в PROMPT.md.
 set -u
 cd "$(dirname "$0")"
@@ -21,6 +22,16 @@ rootcmd() {
 HF_URL="https://huggingface.co/rchow93/crewai-qwen3-8b-gguf/resolve/main/crewai-qwen3-8b-thinking-v2-q4_k_m.gguf"
 HF_SIZE=5027783936
 BROKER_YAML="$HOME/.config/bastion/broker.yaml"
+
+WITH_WEBUI=0
+WITH_MONITOR=0
+for arg in "$@"; do
+  case "$arg" in
+    --with-webui) WITH_WEBUI=1 ;;
+    --with-monitor) WITH_MONITOR=1 ;;
+    *) echo "[WARN] неизвестный флаг: $arg" ;;
+  esac
+done
 
 # ---------- Шаг 0/1: базовые зависимости ----------
 SUDO="$(rootcmd)"
@@ -135,15 +146,28 @@ src = re.sub(r'(?s)(server:\n)(.*?)(\n\S|\Z)',
              r'\1  host: "127.0.0.1"\n  port: 11434\n  trusted_hosts: ["localhost", "127.0.0.1", "host.docker.internal"]\3', src)
 src = re.sub(r'(?s)(ollama:\n)(.*?)(\n\S|\Z)',
              r'\1  host: "127.0.0.1"\n  port: 11435\3', src)
-# 2) GPU: явный total_vram_gb (auto-detect=0 ломает бюджет в user-сервисе) и headroom
+# 2) GPU: явный total_vram_gb (auto-detect=0 ломает бюджет в user-сервисе).
+#    headroom_gb влияет только на max_vram_gb в телеметрии; допуск считает
+#    hardware_margin_gb (дефолт 2.0 -> бюджет 6144MB, модели 9B не влезают).
 src = re.sub(r'^(\s*)total_vram_gb:.*$', rf'\1total_vram_gb: {vram_gb}  # явное значение: auto-detect не работает в systemd user-сервисе', src, flags=re.M)
 src = re.sub(r'^(\s*)headroom_gb:.*$', r'\1headroom_gb: 0.9', src, flags=re.M)
-# 3) записи моделей: каждая обязана иметь vram_gb, иначе дефолт 10GB -> 504
+if re.search(r'^\s*hardware_margin_gb:', src, flags=re.M):
+    src = re.sub(r'^(\s*)hardware_margin_gb:.*$', r'\1hardware_margin_gb: 0.9', src, flags=re.M)
+elif re.search(r'^\s*headroom_gb: 0\.9', src, flags=re.M):
+    src = re.sub(r'^(\s*)headroom_gb: 0\.9.*$',
+                 r'\1headroom_gb: 0.9\n\1hardware_margin_gb: 0.9', src, flags=re.M, count=1)
+else:
+    src = src.replace('gpu:\n', 'gpu:\n  hardware_margin_gb: 0.9\n', 1)
+# 3) записи моделей: vram_gb — замеренный runtime-VRAM, не размер файла.
+#    Завышение запирает модель в очереди (nvidia-smi backstop), занижение — риск OOM.
 models = {
-    "qwen3:8b": ("4.9", "general"),
-    "qwen3.5:9b": ("6.2", "general"),
-    "crewai-qwen3-8b": ("5.0", "agent"),
+    "qwen3:8b": ("5.1", "general"),
+    "qwen3.5:9b": ("5.2", "general"),
+    "crewai-qwen3-8b": ("5.1", "agent"),
 }
+for name, (gb, tag) in models.items():
+    pattern = re.compile(r'("' + re.escape(name) + r'":\s*\n\s*vram_gb:\s*)[0-9.]+')
+    src = pattern.sub(lambda m: m.group(1) + gb, src)
 if re.search(r'^models:\s*\{\}', src, flags=re.M):
     src = re.sub(r'^models:\s*\{\}', 'models:', src, flags=re.M)
 block = ""
@@ -158,7 +182,7 @@ if 'models:' not in src:
 src = src.rstrip('\n') + block + '\n' if block else src
 if src != orig:
     open(path, "w").write(src)
-    print("broker.yaml пропатчен: loopback, total_vram_gb, headroom, models")
+    print("broker.yaml пропатчен: loopback, total_vram_gb, margins, models")
 else:
     print("broker.yaml уже корректен")
 PYEOF
@@ -232,8 +256,26 @@ else
   echo "[SKIP] Open Interpreter не устанавливается: codex-движок 0.0.56 требует контекст, не влезающий в 8 GB VRAM (PROMPT.md шаг 8)"
 fi
 
+# ---------- Монитор состояния (опция --with-monitor) ----------
+if [ "$WITH_MONITOR" = 1 ]; then
+  DESKLET_DIR="$HOME/.local/share/cinnamon/desklets/lmintai-status@vsp"
+  mkdir -p "$DESKLET_DIR"
+  run cp monitor/status_server.py "$HOME/ai-workspace/status_server.py"
+  run cp monitor/lmintai-status.service "$HOME/.config/systemd/user/"
+  run cp monitor/desklet/metadata.json monitor/desklet/desklet.js \
+        monitor/desklet/stylesheet.css monitor/desklet/settings-schema.json "$DESKLET_DIR/"
+  systemctl --user daemon-reload
+  systemctl --user enable --now lmintai-status
+  sleep 1
+  curl -s -m 3 http://127.0.0.1:11436/api/status >/dev/null \
+    || die "панель не отвечает: journalctl --user -u lmintai-status"
+  ok "панель состояния: http://127.0.0.1:11436/"
+  echo "[HINT] desklet установлен; включить: ПКМ по рабочему столу → Desklets → «linuxmintai · состояние»"
+  echo "[HINT] после правки desklet.js оболочку нужно перезапустить: cinnamon --replace"
+fi
+
 # ---------- Шаг 10 (опция --with-webui): Open WebUI в Docker ----------
-if [ "${1:-}" = "--with-webui" ]; then
+if [ "$WITH_WEBUI" = 1 ]; then
   if ! docker info >/dev/null 2>&1; then
     run $SUDO systemctl enable --now docker
   fi
@@ -266,7 +308,10 @@ fi
 # ---------- Финальная проверка ----------
 echo; echo "=== Итоговая проверка ==="
 bastion --validate 2>&1 | tail -3
-ss -tlnp 2>/dev/null | grep -E '1143[45]' | grep -v '127.0.0.1' && die "найден не-loopback слушатель!" || ok "слушатели только на 127.0.0.1"
+ss -tlnp 2>/dev/null | grep -E '1143[456]|:3000' | grep -v '127.0.0.1' && die "найден не-loopback слушатель!" || ok "слушатели только на 127.0.0.1"
 curl -s -m 60 http://127.0.0.1:11434/api/generate -d '{"model":"crewai-qwen3-8b","prompt":"ping","stream":false,"options":{"num_predict":8}}' >/dev/null && ok "сквозной вызов crewai-qwen3-8b через bastion прошёл"
+if [ "$WITH_MONITOR" = 1 ]; then
+  curl -s -m 3 http://127.0.0.1:11436/api/status >/dev/null && ok "панель состояния отвечает" || die "панель не отвечает: journalctl --user -u lmintai-status"
+fi
 "$VENV/bin/python" -c "import sys; sys.path.insert(0,'$HOME/ai-workspace'); from config_llm import describe_now; print('Модель:', describe_now())"
 echo "Готово. Демо: $VENV/bin/python ~/ai-workspace/agent_demo.py \"почини права у ~/.bashrc\""

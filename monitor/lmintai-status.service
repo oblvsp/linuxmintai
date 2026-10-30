@@ -1,0 +1,12 @@
+[Unit]
+Description=linuxmintai status dashboard (127.0.0.1:11436)
+After=bastion.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/ai-workspace/status_server.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

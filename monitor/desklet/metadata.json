@@ -1,0 +1,9 @@
+{
+    "uuid": "lmintai-status@vsp",
+    "name": "linuxmintai · состояние",
+    "description": "GPU, VRAM, RAM и активность локальной LLM (bastion)",
+    "version": "1.0",
+    "author": "vsp",
+    "prevent-decorations": true,
+    "max-instances": 2
+}
