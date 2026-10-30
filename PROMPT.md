@@ -273,6 +273,7 @@ curl -s http://127.0.0.1:11436/api/text
 - сервер — только stdlib (`http.server`), слушает 127.0.0.1:11436, зависимостей нет;
 - у bastion НЕТ CORS-заголовков: браузерная страница с :3000 не может читать :11434 напрямую, поэтому панель опрашивает bastion на сервере, а desklet читает `/api/text` через curl;
 - Cinnamon кэширует JS-модуль desklet'а: после правки `desklet.js` нужен `cinnamon --replace` (окна приложений сохраняются);
+- `cinnamon --replace` нельзя запускать из shell агента (Qoder): процесс наследует cgroup `app-qoder-*.scope`, и при выходе Qoder systemd с `KillMode=control-group` убивает всю группу — оболочка падает, рабочий стол остаётся без панели и WM. Запускать из терминала вне Qoder или `systemd-run --user --unit=cinnamon-replace --collect cinnamon --replace`; `nohup`/`setsid` не спасают — убивает cgroup, а не SIGHUP;
 - GJS трактует байты curl как Latin-1: в `desklet.js` есть ручной UTF-8 декодер, иначе кириллица превращается в `Ð¾ÑÐµÑ€ÐµÐ´Ñ`;
 - тема Cinnamon перебивает `color` из `stylesheet.css` — цвета текста заданы inline;
 - палитра общая: токены `:root` в `status_server.py`, те же значения — в `desklet/stylesheet.css` и `PALETTE` в `desklet.js`; GTK3 CSS не знает custom properties, поэтому синхронизировать вручную.
