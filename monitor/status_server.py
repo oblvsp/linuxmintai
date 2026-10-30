@@ -4,7 +4,7 @@
     python3 status_server.py [--port 11436] [--bastion http://127.0.0.1:11434]
 
 Эндпоинты:
-    /            выбор вёрстки по ориентации окна (портрет → /v1, альбом → /v2)
+    /            авто: вёрстка по ориентации окна, переключается на лету
     /v1          вертикальная вёрстка под портретный экран 1024×1280
     /v2          широкий пульт под основной экран 1920×1080
     /api/status  JSON для дашборда и внешних потребителей (живые метрики)
@@ -514,10 +514,17 @@ PAGE = """<!doctype html>
    .v2 .c-failed, .v2 .c-links { grid-column:span 1; }
  }
 </style></head>
-<body class="__CLS__"><div class="wrap">
+<body class="__CLS__"><script>
+(function () {
+  if (document.body.className !== "auto") return;
+  const pick = () => innerHeight > innerWidth ? "v1" : "v2";
+  document.body.className = pick();
+  addEventListener("resize", () => { document.body.className = pick(); });
+})();
+</script><div class="wrap">
  <header><h1>linuxmintai · хаб</h1>
    <nav class="switch">
-     <a href="/v1" class="__ON1__">вертикальная</a><a href="/v2" class="__ON2__">широкая</a>
+     <a href="/" class="__ONA__">авто</a><a href="/v1" class="__ON1__">вертикальная</a><a href="/v2" class="__ON2__">широкая</a>
    </nav>
  </header>
  <div class="board">
@@ -729,16 +736,8 @@ def page(variant):
     return (PAGE
             .replace("__CLS__", variant)
             .replace("__ON1__", "on" if variant == "v1" else "")
-            .replace("__ON2__", "on" if variant == "v2" else ""))
-
-
-AUTO_PAGE = """<!doctype html>
-<html lang="ru"><head><meta charset="utf-8">
-<title>linuxmintai · хаб</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<script>location.replace(innerHeight > innerWidth ? "/v1" : "/v2");</script>
-</head><body style="margin:0;background:#0f1115"></body></html>
-"""
+            .replace("__ON2__", "on" if variant == "v2" else "")
+            .replace("__ONA__", "on" if variant == "auto" else ""))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -754,7 +753,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
-            self._send(200, AUTO_PAGE, "text/html; charset=utf-8")
+            self._send(200, page("auto"), "text/html; charset=utf-8")
         elif path in ("/v1", "/v2"):
             self._send(200, page(path[1:]), "text/html; charset=utf-8")
         elif self.path == "/api/status":

@@ -250,17 +250,25 @@ fi
 # ---------- Монитор состояния (опция --with-monitor) ----------
 if [ "$WITH_MONITOR" = 1 ]; then
   DESKLET_DIR="$HOME/.local/share/cinnamon/desklets/lmintai-status@vsp"
-  mkdir -p "$DESKLET_DIR"
-  run cp monitor/status_server.py "$HOME/ai-workspace/status_server.py"
+  HUB_ICONS="$HOME/.local/share/icons/hicolor/scalable/apps"
+  mkdir -p "$DESKLET_DIR" "$HUB_ICONS" "$HOME/.local/share/applications"
+  run cp monitor/status_server.py monitor/hub_app.py "$HOME/ai-workspace/"
   run cp monitor/lmintai-status.service "$HOME/.config/systemd/user/"
   run cp monitor/desklet/metadata.json monitor/desklet/desklet.js \
         monitor/desklet/stylesheet.css monitor/desklet/settings-schema.json "$DESKLET_DIR/"
+  run cp monitor/lmintai-hub.desktop "$HOME/.local/share/applications/lmintai-hub.desktop"
+  run cp monitor/lmintai-hub.svg "$HUB_ICONS/lmintai-hub.svg"
+  command -v update-desktop-database >/dev/null && \
+    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+  command -v gtk-update-icon-cache >/dev/null && \
+    gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
   systemctl --user daemon-reload
   systemctl --user enable --now lmintai-status
   sleep 1
   curl -s -m 3 http://127.0.0.1:11436/api/status >/dev/null \
     || die "панель не отвечает: journalctl --user -u lmintai-status"
   ok "панель состояния: http://127.0.0.1:11436/"
+  echo "[HINT] веб-приложение «linuxmintai · хаб» — меню → Программирование"
   echo "[HINT] desklet установлен; включить: ПКМ по рабочему столу → Desklets → «linuxmintai · состояние»"
   echo "[HINT] после правки desklet.js оболочку нужно перезапустить: cinnamon --replace"
 fi

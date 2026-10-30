@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=linuxmintai hub
+Name[ru]=linuxmintai · хаб
+GenericName=LLM stack dashboard
+GenericName[ru]=Панель локального LLM-стека
+Comment=Модель, GPU, стек и бэкапы в отдельном окне
+Comment[ru]=Модель, GPU, стек и бэкапы в отдельном окне
+Exec=/usr/bin/python3 /home/vsp/ai-workspace/hub_app.py
+Icon=lmintai-hub
+Terminal=false
+Categories=Development;
+Keywords=llm;ollama;backup;monitor;hub;
+StartupNotify=true
+StartupWMClass=linuxmintai-hub
