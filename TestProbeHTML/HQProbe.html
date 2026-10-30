@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HQ36 Probe — Retro Skins</title>
+<style>
+  :root {
+    --body-top: #2A8A8A; --body-bottom: #175454; --body-edge: #0F2E2E;
+    --engrave: #E8F0F0; --socket: #0F2E2E;
+    --knob-top: #3A3A3A; --knob-bottom: #0E0E0E;
+    --vu-bg-top: #2A2014; --vu-bg-bottom: #1A140C;
+    --amber: #F5A623; --needle: #FFD9A0; --scale: #F0E2C8;
+    --red: #E04B3A; --shadow: rgba(0,0,0,0.5);
+    --title-color: #FFFFFF; --screw-color: #0F2E2E;
+    --wear: 0.35; --wear-scratch: 0.5; --wear-dust: 0.4;
+    --wear-chips: 0.15; --wear-ring: 0.15; --wear-knob: 0.15;
+    --wear-glass: 0.2; --wear-screw: 0.2;
+    --cracks: 0;
+    --noise-freq: 0.9; --noise-oct: 3;
+    --letter-spacing: 0.5px;
+    --material-op: 0.15; --material-blend: overlay; --material-size: 200px 200px;
+  }
+
+  body.skin-midnight {
+    --body-top: #1A1F24; --body-bottom: #0A0D10; --body-edge: #05080A;
+    --engrave: #A8C0D0; --socket: #05080A;
+    --knob-top: #2A3038; --knob-bottom: #080A0C;
+    --vu-bg-top: #101820; --vu-bg-bottom: #060A0E;
+    --amber: #6EC8FF; --needle: #B8E4FF; --scale: #C8DCE8;
+    --red: #FF5C5C; --title-color: #E8F4FF; --screw-color: #05080A;
+    --wear: 0.45; --wear-scratch: 0.65; --wear-dust: 0.5;
+    --wear-chips: 0.2; --wear-ring: 0.2; --wear-knob: 0.25;
+    --wear-glass: 0.35; --wear-screw: 0.3;
+    --cracks: 0;
+    --noise-freq: 0.85; --noise-oct: 3;
+    --material-op: 0.18; --material-blend: soft-light; --material-size: 100px 100px;
+  }
+
+  body.skin-oxblood {
+    --body-top: #5C1F1F; --body-bottom: #2E0E0E; --body-edge: #1A0606;
+    --engrave: #F0D8C0; --socket: #1A0606;
+    --knob-top: #3A2020; --knob-bottom: #120606;
+    --vu-bg-top: #2A1A0E; --vu-bg-bottom: #1A0E06;
+    --amber: #F5A623; --needle: #FFD9A0; --scale: #F0DCC0;
+    --red: #FF5C5C; --title-color: #FFF0E0; --screw-color: #1A0606;
+    --wear: 0.55; --wear-scratch: 0.8; --wear-dust: 0.55;
+    --wear-chips: 0.35; --wear-ring: 0.3; --wear-knob: 0.35;
+    --wear-glass: 0.5; --wear-screw: 0.45;
+    --cracks: 0.2;
+    --noise-freq: 0.8; --noise-oct: 3;
+    --material-op: 0.22; --material-blend: multiply; --material-size: 120px 120px;
+  }
+
+  body.skin-forest {
+    --body-top: #1F3D2E; --body-bottom: #0E1F16; --body-edge: #061008;
+    --engrave: #C8E8D0; --socket: #061008;
+    --knob-top: #2A3A30; --knob-bottom: #08120C;
+    --vu-bg-top: #14200E; --vu-bg-bottom: #0A1006;
+    --amber: #A8E05C; --needle: #D8FFA8; --scale: #D0E8C8;
+    --red: #FF6B5C; --title-color: #E8FFE8; --screw-color: #061008;
+    --wear: 0.5; --wear-scratch: 0.7; --wear-dust: 0.6;
+    --wear-chips: 0.25; --wear-ring: 0.25; --wear-knob: 0.3;
+    --wear-glass: 0.4; --wear-screw: 0.35;
+    --cracks: 0;
+    --noise-freq: 0.95; --noise-oct: 3;
+    --material-op: 0.14; --material-blend: overlay; --material-size: 80px 80px;
+  }
+
+  body.skin-ivory {
+    --body-top: #E8E0D0; --body-bottom: #C8BFA8; --body-edge: #A89E88;
+    --engrave: #3A3020; --socket: #A89E88;
+    --knob-top: #4A4A4A; --knob-bottom: #1A1A1A;
+    --vu-bg-top: #D8D0C0; --vu-bg-bottom: #C0B8A8;
+    --amber: #3A5A8A; --needle: #2A4A7A; --scale: #3A3020;
+    --red: #C84A3A; --shadow: rgba(0,0,0,0.3);
+    --title-color: #2A2018; --screw-color: #A89E88;
+    --wear: 0.4; --wear-scratch: 0.6; --wear-dust: 0.7;
+    --wear-chips: 0.3; --wear-ring: 0.25; --wear-knob: 0.25;
+    --wear-glass: 0.45; --wear-screw: 0.4;
+    --cracks: 0.15;
+    --noise-freq: 0.7; --noise-oct: 3;
+    --material-op: 0.18; --material-blend: multiply; --material-size: 150px 150px;
+  }
+
+  body.skin-chrome {
+    --body-top: #4A4A4A; --body-bottom: #1A1A1A; --body-edge: #0A0A0A;
+    --engrave: #E0E0E0; --socket: #0A0A0A;
+    --knob-top: #5A5A5A; --knob-bottom: #0E0E0E;
+    --vu-bg-top: #202020; --vu-bg-bottom: #101010;
+    --amber: #FFFFFF; --needle: #FFFFFF; --scale: #E0E0E0;
+    --red: #FF4040; --title-color: #FFFFFF; --screw-color: #0A0A0A;
+    --wear: 0.3; --wear-scratch: 1.0; --wear-dust: 0.2;
+    --wear-chips: 0.15; --wear-ring: 0.4; --wear-knob: 0.45;
+    --wear-glass: 0.65; --wear-screw: 0.5;
+    --cracks: 0.5;
+    --noise-freq: 1.1; --noise-oct: 4;
+    --material-op: 0.25; --material-blend: screen; --material-size: 300px 300px;
+  }
+
+  body.skin-pedal {
+    --body-top: #6B8E23; --body-bottom: #3D5214; --body-edge: #2A3A0E;
+    --engrave: #E8E0C8; --socket: #2A3A0E;
+    --knob-top: #4A4A3A; --knob-bottom: #12120A;
+    --vu-bg-top: #2A2414; --vu-bg-bottom: #16120A;
+    --amber: #F5A623; --needle: #FFD9A0; --scale: #E8DCC0;
+    --red: #D04A3A; --title-color: #F0E8D0; --screw-color: #2A3A0E;
+    --wear: 0.9; --wear-scratch: 1.0; --wear-dust: 0.85;
+    --wear-chips: 0.9; --wear-ring: 0.7; --wear-knob: 0.8;
+    --wear-glass: 0.85; --wear-screw: 0.8;
+    --cracks: 0.9;
+    --noise-freq: 0.75; --noise-oct: 3;
+    --material-op: 0.35; --material-blend: multiply; --material-size: 180px 180px;
+  }
+
+  body.skin-brass {
+    --body-top: #B8934A; --body-bottom: #6E5528; --body-edge: #3E3018;
+    --engrave: #F8EED0; --socket: #3E3018;
+    --knob-top: #4A3E28; --knob-bottom: #14100A;
+    --vu-bg-top: #2A2214; --vu-bg-bottom: #16120A;
+    --amber: #F5C542; --needle: #FFE8A8; --scale: #F0DCC0;
+    --red: #C84A3A; --title-color: #FFF8E0; --screw-color: #3E3018;
+    --wear: 0.65; --wear-scratch: 0.85; --wear-dust: 0.5;
+    --wear-chips: 0.6; --wear-ring: 0.45; --wear-knob: 0.55;
+    --wear-glass: 0.6; --wear-screw: 0.55;
+    --cracks: 0.6;
+    --noise-freq: 0.6; --noise-oct: 2;
+    --material-op: 0.22; --material-blend: overlay; --material-size: 200px 200px;
+  }
+
+  body.skin-sand {
+    --body-top: #C8A878; --body-bottom: #A88858; --body-edge: #6E5838;
+    --engrave: #3A2E1E; --socket: #6E5838;
+    --knob-top: #5A4A30; --knob-bottom: #1E160A;
+    --vu-bg-top: #C0A880; --vu-bg-bottom: #A08860;
+    --amber: #8A4A1A; --needle: #6E3810; --scale: #3A2E1E;
+    --red: #B84A2A; --shadow: rgba(0,0,0,0.35);
+    --title-color: #2E2416; --screw-color: #6E5838;
+    --wear: 0.6; --wear-scratch: 0.7; --wear-dust: 0.8;
+    --wear-chips: 0.45; --wear-ring: 0.3; --wear-knob: 0.35;
+    --wear-glass: 0.55; --wear-screw: 0.45;
+    --cracks: 0.25;
+    --noise-freq: 0.5; --noise-oct: 2;
+    --material-op: 0.30; --material-blend: multiply; --material-size: 60px 60px;
+  }
+
+  body.skin-soviet {
+    --body-top: #5A6248; --body-bottom: #2E3424; --body-edge: #1A1E12;
+    --engrave: #D8D4C0; --socket: #1A1E12;
+    --knob-top: #3A3E30; --knob-bottom: #10140A;
+    --vu-bg-top: #1E2018; --vu-bg-bottom: #0E100A;
+    --amber: #E8B84A; --needle: #F0D890; --scale: #D8D4C0;
+    --red: #C84A2A; --title-color: #E8E4D0; --screw-color: #1A1E12;
+    --wear: 0.7; --wear-scratch: 0.85; --wear-dust: 0.6;
+    --wear-chips: 0.55; --wear-ring: 0.4; --wear-knob: 0.5;
+    --wear-glass: 0.65; --wear-screw: 0.6;
+    --cracks: 0.75;
+    --noise-freq: 0.7; --noise-oct: 2;
+    --letter-spacing: 2px;
+    --material-op: 0.28; --material-blend: multiply; --material-size: 140px 140px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    min-height: 100vh;
+    background: #0A0A0A;
+    font-family: Helvetica, Arial, sans-serif;
+    gap: 16px;
+    padding: 20px 0;
+  }
+
+  .phone {
+    width: 390px; height: 844px;
+    position: relative; overflow: hidden;
+    border-radius: 40px;
+    background: linear-gradient(180deg, var(--body-top), var(--body-bottom));
+    border: 6px solid var(--body-edge);
+    transition: background 0.5s, border-color 0.5s;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    isolation: isolate;
+  }
+
+  .material {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image: var(--material-url, none);
+    background-size: var(--material-size, 200px 200px);
+    background-repeat: repeat;
+    opacity: var(--material-op, 0.15);
+    mix-blend-mode: var(--material-blend, overlay);
+    transition: opacity 0.5s;
+  }
+
+  .noise {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    mix-blend-mode: overlay;
+    transition: opacity 0.5s ease;
+    background-size: 200px 200px;
+  }
+  .noise-a { opacity: var(--wear); }
+  .noise-b { opacity: 0; }
+
+  .scratches {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    opacity: var(--wear-scratch);
+    mix-blend-mode: screen;
+    transition: opacity 0.5s;
+    background-size: 100% 100%;
+  }
+
+  .dust {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: var(--wear-dust);
+    mix-blend-mode: multiply;
+    transition: opacity 0.5s;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(60,40,20,0.15) 0%, transparent 25%),
+      radial-gradient(circle at 80% 70%, rgba(40,30,15,0.18) 0%, transparent 30%),
+      radial-gradient(circle at 50% 90%, rgba(30,20,10,0.12) 0%, transparent 20%),
+      radial-gradient(circle at 10% 80%, rgba(50,35,15,0.1) 0%, transparent 15%);
+  }
+
+  .chips {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    opacity: var(--wear-chips);
+    mix-blend-mode: overlay;
+    transition: opacity 0.5s;
+    -webkit-mask-image: radial-gradient(ellipse 95% 90% at center, transparent 55%, black 95%);
+    mask-image: radial-gradient(ellipse 95% 90% at center, transparent 55%, black 95%);
+  }
+
+  .knob-wear {
+    position: absolute;
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: var(--wear-knob);
+    mix-blend-mode: overlay;
+    transition: opacity 0.5s;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 6;
+    background-size: 100% 100%;
+  }
+
+  .screw {
+    position: absolute; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--screw-color);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.15);
+    transition: background 0.5s;
+    z-index: 5;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .screw::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: var(--screw-wear-url);
+    background-size: 100% 100%;
+    opacity: var(--wear-screw);
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+  .screw.tl { top: 14px; left: 14px; }
+  .screw.tr { top: 14px; right: 14px; }
+  .screw.bl { bottom: 14px; left: 14px; }
+  .screw.br { bottom: 14px; right: 14px; }
+
+  .screw-zone {
+    position: absolute;
+    width: 68px; height: 68px;
+    z-index: 7;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .screw-zone:active { background: rgba(255,255,255,0.06); }
+  .screw-zone.bl { bottom: 0; left: 0; align-items: flex-end; justify-content: flex-start; padding: 8px; }
+  .screw-zone.br { bottom: 0; right: 0; align-items: flex-end; justify-content: flex-end; padding: 8px; }
+  .screw-zone.tl { top: 0; left: 0; align-items: flex-start; justify-content: flex-start; padding: 8px; }
+  .screw-zone.tr { top: 0; right: 0; align-items: flex-start; justify-content: flex-end; padding: 8px; }
+
+  .header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 40px 30px 0;
+    position: relative; 
+    z-index: 4;
+  }
+  .check {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; user-select: none;
+    padding: 6px 10px 6px 4px; border-radius: 20px;
+    transition: background 0.2s;
+    line-height: 1;
+  }
+  .check:active { background: rgba(255,255,255,0.08); }
+  .check .led {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #3DDC84; box-shadow: 0 0 8px #3DDC84;
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+  .check.pairing .led { animation: blink 1.2s infinite; }
+  @keyframes blink { 50% { opacity: 0.2; } }
+  .check span {
+    font-size: 11px; font-weight: bold; letter-spacing: 1.5px;
+    color: var(--engrave); opacity: 0.85;
+    transition: color 0.5s;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='20'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100' height='20' fill='white'/%3E%3Crect width='100' height='20' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='20'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100' height='20' fill='white'/%3E%3Crect width='100' height='20' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.4), 0 0 2px rgba(255,255,255,0.2);
+  }
+  
+  .title {
+    font-size: 24px; font-weight: 900; color: var(--title-color);
+    letter-spacing: var(--letter-spacing);
+    transition: color 0.5s, letter-spacing 0.5s;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='40'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='200' height='40' fill='white'/%3E%3Crect width='200' height='40' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='40'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='200' height='40' fill='white'/%3E%3Crect width='200' height='40' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    line-height: 1;
+  }
+  body.skin-soviet .title {
+    text-transform: uppercase;
+    font-family: 'Courier New', monospace;
+    font-size: 20px;
+  }
+
+  /* VU-блок */
+  .vu {
+    margin: 50px 28px 0; 
+    background: linear-gradient(180deg, var(--vu-bg-top), var(--vu-bg-bottom));
+    border: 3px solid var(--body-edge);
+    border-radius: 10px;
+    padding: 16px 12px 8px;
+    transition: background 0.5s, border-color 0.5s;
+    position: relative; 
+    z-index: 4;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+
+  .vu-glass {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: var(--wear-glass);
+    mix-blend-mode: screen;
+    transition: opacity 0.5s;
+    background-size: 100% 100%;
+    border-radius: 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+
+  .vu-cracks {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: var(--cracks);
+    mix-blend-mode: screen;
+    transition: opacity 0.5s;
+    background-size: 100% 100%;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .vu-flash {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: var(--amber);
+    opacity: 0;
+    border-radius: 8px;
+    transition: opacity 0.3s ease-out;
+  }
+  .vu-flash.on { opacity: 0.066; transition: opacity 0.05s ease-in; }
+
+  .vu-meter {
+    position: relative; 
+    height: 90px;
+    display: flex; 
+    justify-content: space-between;
+    z-index: 2;
+  }
+
+  .meter { 
+    position: relative; 
+    width: 48%; 
+    height: 100%; 
+  }
+  
+  .scale-line {
+    position: absolute; bottom: 20px; left: 0; right: 0;
+    height: 1px; background: var(--scale); opacity: 0.4;
+    transition: background 0.5s;
+  }
+  
+  .ticks {
+    position: absolute; bottom: 20px; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+  }
+  .tick {
+    width: 1px; height: 6px; background: var(--scale); opacity: 0.5;
+    position: relative; transition: background 0.5s;
+  }
+  .tick.major { height: 10px; opacity: 0.8; }
+  .tick span {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 7px; color: var(--scale); opacity: 0.8; white-space: nowrap;
+    transition: color 0.5s;
+  }
+  
+  .red-zone {
+    position: absolute; bottom: 20px; right: 0; width: 22%;
+    height: 4px; background: var(--red); opacity: 0.8;
+    border-radius: 2px; transition: background 0.5s;
+  }
+  
+  .needle {
+    position: absolute; 
+    bottom: 20px; 
+    left: 50%; 
+    width: 2px; 
+    height: 60px; 
+    background: var(--needle);
+    transform-origin: 50% 100%; 
+    transform: translateX(-50%) rotate(-40deg);
+    border-radius: 2px;
+    box-shadow: 0 0 4px var(--amber);
+    transition: transform 0.12s ease-out, background 0.5s;
+  }
+  .needle::after {
+    content: ''; position: absolute; bottom: -3px; left: -2px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--needle); transition: background 0.5s;
+  }
+  .label-lr {
+    position: absolute; bottom: -2px; left: 0;
+    font-size: 9px; color: var(--scale); opacity: 0.8;
+    transition: color 0.5s;
+  }
+
+  .zones {
+    display: flex; margin-top: 10px;
+    border-top: 1px solid rgba(232,240,240,0.15);
+    position: relative; z-index: 2;
+  }
+  .zone {
+    flex: 1; height: 52px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--engrave); opacity: 0.28;
+    cursor: pointer; user-select: none;
+    transition: opacity 0.1s, background 0.1s, color 0.5s;
+  }
+  .zone:not(:last-child) { border-right: 1px solid rgba(232,240,240,0.15); }
+  .zone:active, .zone.flash { opacity: 0.75; background: rgba(255,255,255,0.05); }
+
+  /* Сетка */
+  .small-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); 
+    padding: 70px 20px 0; 
+    position: relative; 
+    z-index: 4;
+  }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); 
+    padding: 60px 20px 0; 
+    position: relative; 
+    z-index: 4;
+  }
+
+  .btn-wrap, .small {
+    display: flex;
+    flex-direction: column;
+    align-items: center;    
+    justify-content: flex-start;
+    text-align: center;
+  }
+
+  .small {
+    gap: 6px; 
+    padding: 6px 0; 
+    cursor: pointer; 
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .small:active { background: rgba(255,255,255,0.06); }
+
+  .btn-wrap {
+    gap: 14px; 
+  }
+
+  .btn {
+    position: relative;
+    width: 76px; height: 76px;
+    border-radius: 50%;
+    background: var(--socket);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+    box-shadow: inset 0 6px 10px rgba(0,0,0,0.6),
+                inset 0 -2px 4px rgba(255,255,255,0.05);
+    transition: box-shadow 0.1s, background 0.5s;
+    /* Оптимизация анимации */
+    will-change: transform, box-shadow;
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  .btn-inner {
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--knob-top), var(--knob-bottom));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 10px var(--shadow),
+                inset 0 2px 3px rgba(255,255,255,0.25),
+                inset 0 -3px 6px rgba(0,0,0,0.5);
+    transform: translateY(-3px);
+    transition: transform 0.09s ease-out, box-shadow 0.09s, background 0.5s;
+    position: relative;
+    overflow: hidden;
+    will-change: transform;
+  }
+  
+  .btn:active .btn-inner,
+  .btn.pressed .btn-inner {
+    transform: translateY(3px);
+    box-shadow: 0 1px 2px var(--shadow),
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 4px 8px rgba(0,0,0,0.7);
+  }
+
+  .ring {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 3px solid #3A3A3A;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+    z-index: 2;
+  }
+  .btn.anc-2 .ring { border-color: #3DDC84; box-shadow: 0 0 8px #3DDC84; }
+  .btn.anc-3 .ring { border-color: #4A9EFF; box-shadow: 0 0 8px #4A9EFF; }
+  .btn.sound-1 .ring { border-color: #E8E8E8; box-shadow: 0 0 8px #E8E8E8; }
+  .btn.sound-2 .ring { border-color: #FF8C42; box-shadow: 0 0 8px #FF8C42; }
+  .btn.sound-3 .ring { border-color: #7FD4FF; box-shadow: 0 0 8px #7FD4FF; }
+  .btn.sound-4 .ring { border-color: #FF5C5C; box-shadow: 0 0 8px #FF5C5C; }
+  .btn.space-on .ring { border-color: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+  .btn-label {
+    font-size: 12px; font-weight: bold; letter-spacing: var(--letter-spacing);
+    color: var(--engrave); opacity: 0.8;
+    transition: color 0.5s, letter-spacing 0.5s;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+  }
+
+  .small .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #3A3A3A; transition: all 0.2s;
+  }
+  .small.active.std .dot { background: #fff; box-shadow: 0 0 6px #fff; }
+  .small.active.lowlat .dot { background: #3DDC84; box-shadow: 0 0 6px #3DDC84; }
+  .small.active.ldac .dot { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  
+  .small span {
+    font-size: 10px; font-weight: bold; letter-spacing: var(--letter-spacing);
+    color: var(--engrave); opacity: 0.8;
+    transition: color 0.5s, letter-spacing 0.5s;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+  }
+
+  .power-label {
+    position: absolute;
+    bottom: 92px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; letter-spacing: 3px;
+    color: var(--engrave); opacity: 0.55;
+    font-weight: bold;
+    z-index: 4;
+    pointer-events: none;
+    transition: color 0.5s;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+  }
+
+  .battery {
+    position: absolute; 
+    bottom: 66px; 
+    left: 50%; 
+    transform: translateX(-50%);
+    display: flex; 
+    gap: 8px;
+    z-index: 4;
+  }
+  .seg {
+    width: 48px; height: 12px; border-radius: 2px;
+    background: #2A2A2A;
+    transition: background 0.3s, box-shadow 0.3s;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+  }
+  
+  .seg.green { background: #3DDC84; box-shadow: 0 0 6px rgba(61,220,132,0.6), inset 0 1px 2px rgba(0,0,0,0.3); }
+  .seg.yellow { background: #F5C842; box-shadow: 0 0 6px rgba(245,200,66,0.6), inset 0 1px 2px rgba(0,0,0,0.3); }
+  .seg.orange { background: #FF8C42; box-shadow: 0 0 6px rgba(255,140,66,0.6), inset 0 1px 2px rgba(0,0,0,0.3); }
+  .seg.red { background: #E04B3A; box-shadow: 0 0 6px rgba(224,75,58,0.6), inset 0 1px 2px rgba(0,0,0,0.3); }
+  
+  .seg.red.blink { animation: segBlink 0.8s infinite; }
+  @keyframes segBlink { 50% { opacity: 0.2; box-shadow: none; } }
+
+  .skin-name {
+    position: absolute;
+    bottom: 32px; left: 50%; transform: translateX(-50%);
+    color: var(--engrave); opacity: 0.55;
+    font-size: 10px; letter-spacing: 3px;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    z-index: 4;
+    transition: color 0.5s;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body class="skin-teal">
+
+<div class="phone" id="phone">
+  <div class="material" id="material"></div>
+  <div class="noise noise-a" id="noiseA"></div>
+  <div class="noise noise-b" id="noiseB"></div>
+  <div class="dust"></div>
+  <div class="scratches" id="scratches"></div>
+  <div class="chips" id="chips"></div>
+
+  <div class="screw-zone tl"><div class="screw tl"></div></div>
+  <div class="screw-zone tr"><div class="screw tr"></div></div>
+  <div class="screw-zone bl" onclick="cycleSkinPrev()" title="Предыдущий скин"><div class="screw bl"></div></div>
+  <div class="screw-zone br" onclick="cycleSkinNext()" title="Следующий скин"><div class="screw br"></div></div>
+
+  <div class="header">
+    <div class="check" id="check" onclick="pair()">
+      <div class="led"></div>
+      <span>CHECK</span>
+    </div>
+    <div class="title">HQ36 Probe</div>
+  </div>
+
+  <div class="small-row">
+    <div class="small std active" onclick="setCodec(this)">
+      <div class="dot"></div><span>STD</span>
+    </div>
+    <div class="small lowlat" onclick="setCodec(this)">
+      <div class="dot"></div><span>LOW LAT</span>
+    </div>
+    <div class="small ldac" onclick="setCodec(this)">
+      <div class="dot"></div><span>LDAC</span>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <div class="btn-wrap">
+      <div class="btn" id="btnANC" onclick="cycleANC(this)">
+        <div class="btn-inner"><div class="ring"></div><div class="knob-wear"></div></div>
+      </div>
+      <div class="btn-label">ANC</div>
+    </div>
+    <div class="btn-wrap">
+      <div class="btn sound-1" id="btnSound" onclick="cycleSound(this)">
+        <div class="btn-inner"><div class="ring"></div><div class="knob-wear"></div></div>
+      </div>
+      <div class="btn-label">SOUND</div>
+    </div>
+    <div class="btn-wrap">
+      <div class="btn" id="btnSpace" onclick="toggleSpace(this)">
+        <div class="btn-inner"><div class="ring"></div><div class="knob-wear"></div></div>
+      </div>
+      <div class="btn-label">SPACE</div>
+    </div>
+  </div>
+
+  <div class="vu" id="vuBlock">
+    <div class="vu-glass" id="vuGlass"></div>
+    <div class="vu-cracks" id="vuCracks"></div>
+    <div class="vu-flash" id="vuFlash"></div>
+    
+    <div class="vu-meter">
+      <div class="meter">
+        <div class="scale-line"></div>
+        <div class="ticks">
+          <div class="tick major"><span>-20</span></div>
+          <div class="tick"><span></span></div>
+          <div class="tick major"><span>-10</span></div>
+          <div class="tick"><span></span></div>
+          <div class="tick major"><span>0</span></div>
+          <div class="tick"><span></span></div>
+          <div class="tick major"><span>+3</span></div>
+        </div>
+        <div class="red-zone"></div>
+        <div class="needle" id="needleL"></div>
+        <div class="label-lr">L</div>
+      </div>
+      
+      <div class="meter">
+        <div class="scale-line"></div>
+        <div class="ticks">
+          <div class="tick major"><span>-20</span></div>
+          <div class="tick"><span></span></div>
+          <div class="tick major"><span>-10</span></div>
+          <div class="tick"><span></span></div>
+          <div class="tick major"><span>0</span></div>
+          <div class="tick"><span></span></div>
+          <div class="tick major"><span>+3</span></div>
+        </div>
+        <div class="red-zone"></div>
+        <div class="needle" id="needleR"></div>
+        <div class="label-lr">R</div>
+      </div>
+    </div>
+
+    <div class="zones">
+      <div class="zone" onclick="flashZone(this)">◁◁</div>
+      <div class="zone" id="playZone" onclick="flashZone(this); togglePlay()">▷</div>
+      <div class="zone" onclick="flashZone(this)">▷▷</div>
+    </div>
+  </div>
+
+  <div class="power-label">POWER</div>
+
+  <div class="battery" id="battery">
+    <div class="seg"></div>
+    <div class="seg"></div>
+    <div class="seg"></div>
+    <div class="seg"></div>
+    <div class="seg"></div>
+  </div>
+
+  <div class="skin-name" id="skinName">BOSS TEAL</div>
+</div>
+
+<script>
+  // ===== ОПТИМИЗИРОВАННЫЙ JS =====
+  const vibrate = () => navigator.vibrate?.(15);
+  const rand = (min, max) => Math.random() * (max - min) + min;
+  const randInt = (min, max) => Math.floor(rand(min, max + 1));
+
+  const SKINS = ['teal','midnight','oxblood','forest','ivory','chrome','pedal','brass','sand','soviet'];
+  const skinNames = {
+    teal: 'BOSS Teal', midnight: 'Midnight', oxblood: 'Oxblood',
+    forest: 'Forest', ivory: 'Ivory', chrome: 'Chrome',
+    pedal: 'Guitar Pedal', brass: 'Brass', sand: 'Sand', soviet: 'Soviet'
+  };
+
+  // ===== 1. БАТАРЕЯ =====
+  let batteryLevel = 5; 
+  const batterySegs = document.querySelectorAll('#battery .seg');
+
+  function renderBattery(level) {
+    batteryLevel = level;
+    batterySegs.forEach(s => s.className = 'seg');
+    if (level === 5) {
+      batterySegs.forEach(s => s.classList.add('green'));
+    } else if (level === 4) {
+      for (let i = 0; i < 4; i++) batterySegs[i].classList.add('green');
+    } else if (level === 3) {
+      for (let i = 0; i < 3; i++) batterySegs[i].classList.add('yellow');
+    } else if (level === 2) {
+      for (let i = 0; i < 2; i++) batterySegs[i].classList.add('orange');
+    } else if (level === 1) {
+      batterySegs[0].classList.add('red', 'blink');
+    }
+  }
+
+  document.getElementById('battery').addEventListener('click', () => {
+    batteryLevel = batteryLevel <= 1 ? 5 : batteryLevel - 1;
+    renderBattery(batteryLevel);
+    vibrate();
+  });
+
+  // ===== 2. ДИНАМИЧЕСКИЙ ШУМ (Кэширование) =====
+  function buildNoiseURL(freq, octaves) {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>
+      <filter id='n'>
+        <feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${octaves}' stitchTiles='stitch'/>
+        <feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.5 0'/>
+      </filter>
+      <rect width='200' height='200' filter='url(#n)'/>
+    </svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  }
+
+  const noiseCache = new Map();
+
+  let activeNoise = 'a';
+  const noiseA = document.getElementById('noiseA');
+  const noiseB = document.getElementById('noiseB');
+
+  function updateNoise() {
+    const cs = getComputedStyle(document.body);
+    const freq = parseFloat(cs.getPropertyValue('--noise-freq')) || 0.9;
+    const oct = parseInt(cs.getPropertyValue('--noise-oct')) || 3;
+    const key = `${freq}-${oct}`;
+    
+    let url = noiseCache.get(key);
+    if (!url) {
+      url = buildNoiseURL(freq, oct);
+      noiseCache.set(key, url);
+    }
+
+    const current = activeNoise === 'a' ? noiseA : noiseB;
+    const next = activeNoise === 'a' ? noiseB : noiseA;
+    
+    next.style.backgroundImage = url;
+    next.style.opacity = cs.getPropertyValue('--wear');
+    requestAnimationFrame(() => { current.style.opacity = '0'; });
+    activeNoise = activeNoise === 'a' ? 'b' : 'a';
+  }
+
+  // ===== 3. ТРАФАРЕТНЫЙ ТЕКСТ =====
+  function updateStencilText() {
+    const titleMask = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='50'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='${0.5 + Math.random()*0.3}' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='300' height='50' fill='white'/%3E%3Crect width='300' height='50' filter='url(%23n)' opacity='${0.4 + Math.random()*0.2}'/%3E%3C/svg%3E")`;
+    const checkMask = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='20'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='${0.7 + Math.random()*0.4}' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100' height='20' fill='white'/%3E%3Crect width='100' height='20' filter='url(%23n)' opacity='${0.5 + Math.random()*0.2}'/%3E%3C/svg%3E")`;
+
+    const titleEl = document.querySelector('.title');
+    const checkEl = document.querySelector('.check span');
+
+    titleEl.style.webkitMaskImage = titleMask;
+    titleEl.style.maskImage = titleMask;
+    checkEl.style.webkitMaskImage = checkMask;
+    checkEl.style.maskImage = checkMask;
+  }
+
+  // ===== 4. МАТЕРИАЛЫ (Кэширование) =====
+  const materialCache = new Map();
+
+  function buildMaterialURL(skin) {
+    if (materialCache.has(skin)) return materialCache.get(skin);
+    
+    const textures = {
+      teal: `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><defs><filter id='paint'><feTurbulence type='fractalNoise' baseFrequency='0.02 0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.35  0 0 0 0 0.35  0 0 0 0.4 0'/></filter></defs><rect width='200' height='200' filter='url(#paint)'/></svg>`,
+      midnight: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><defs><pattern id='brush' width='4' height='100' patternUnits='userSpaceOnUse'><rect width='4' height='100' fill='black'/><rect x='1' width='1' height='100' fill='white' opacity='0.4'/><rect x='3' width='1' height='100' fill='white' opacity='0.2'/></pattern></defs><rect width='100' height='100' fill='url(#brush)'/></svg>`,
+      oxblood: `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><defs><filter id='leather'><feTurbulence type='turbulence' baseFrequency='0.15' numOctaves='4'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.05  0 0 0 0.6 0'/></filter></defs><rect width='120' height='120' filter='url(#leather)'/><circle cx='30' cy='40' r='1.2' fill='black' opacity='0.5'/><circle cx='70' cy='80' r='0.8' fill='black' opacity='0.4'/><circle cx='95' cy='30' r='1' fill='black' opacity='0.5'/><circle cx='40' cy='95' r='0.9' fill='black' opacity='0.4'/></svg>`,
+      forest: `<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><defs><filter id='plastic'><feTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0.35 0'/></filter></defs><rect width='80' height='80' filter='url(#plastic)'/></svg>`,
+      ivory: `<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><defs><filter id='paper'><feTurbulence type='fractalNoise' baseFrequency='0.6 0.4' numOctaves='3'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.08  0 0 0 0 0.05  0 0 0 0.4 0'/></filter></defs><rect width='150' height='150' filter='url(#paper)'/><line x1='0' y1='30' x2='150' y2='28' stroke='black' stroke-width='0.2' opacity='0.3'/><line x1='0' y1='75' x2='150' y2='77' stroke='black' stroke-width='0.2' opacity='0.2'/><line x1='0' y1='120' x2='150' y2='118' stroke='black' stroke-width='0.2' opacity='0.3'/></svg>`,
+      chrome: `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><defs><linearGradient id='metal' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='black' stop-opacity='0.5'/><stop offset='50%' stop-color='white' stop-opacity='0.3'/><stop offset='100%' stop-color='black' stop-opacity='0.5'/></linearGradient><filter id='grain'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.3 0'/></filter></defs><rect width='300' height='300' fill='url(#metal)'/><rect width='300' height='300' filter='url(#grain)'/></svg>`,
+      pedal: `<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><defs><filter id='rust'><feTurbulence type='fractalNoise' baseFrequency='0.3 0.5' numOctaves='3'/><feColorMatrix values='0 0 0 0 0.4  0 0 0 0 0.2  0 0 0 0 0.05  0 0 0 0.7 0'/></filter><filter id='paintc'><feTurbulence type='fractalNoise' baseFrequency='0.05 0.5' numOctaves='2'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.2  0 0 0 0 0.05  0 0 0 0.4 0'/></filter></defs><rect width='180' height='180' filter='url(#paintc)'/><circle cx='40' cy='50' r='12' fill='#5a3a1a' opacity='0.5' filter='url(#rust)'/><circle cx='130' cy='100' r='16' fill='#5a3a1a' opacity='0.5' filter='url(#rust)'/><circle cx='80' cy='150' r='10' fill='#5a3a1a' opacity='0.5' filter='url(#rust)'/></svg>`,
+      brass: `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><defs><radialGradient id='brass' cx='50%' cy='50%' r='70%'><stop offset='0%' stop-color='white' stop-opacity='0.4'/><stop offset='50%' stop-color='black' stop-opacity='0.2'/><stop offset='100%' stop-color='white' stop-opacity='0.3'/></radialGradient><filter id='patina'><feTurbulence type='fractalNoise' baseFrequency='0.4' numOctaves='2'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.15  0 0 0 0 0.05  0 0 0 0.5 0'/></filter></defs><rect width='200' height='200' fill='url(#brass)'/><rect width='200' height='200' filter='url(#patina)'/></svg>`,
+      sand: `<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><defs><filter id='sand'><feTurbulence type='turbulence' baseFrequency='0.7' numOctaves='2'/><feColorMatrix values='0 0 0 0 0.3  0 0 0 0 0.2  0 0 0 0 0.1  0 0 0 0.6 0'/></filter></defs><rect width='60' height='60' filter='url(#sand)'/></svg>`,
+      soviet: `<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><defs><filter id='hammer'><feTurbulence type='fractalNoise' baseFrequency='0.08' numOctaves='1'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0.05  0 0 0 0 0  0 0 0 0.7 0'/><feComponentTransfer><feFuncA type='discrete' tableValues='0 0.2 0 0.5 0 0.2 0'/></feComponentTransfer></filter></defs><rect width='140' height='140' filter='url(#hammer)'/></svg>`
+    };
+    
+    const url = `url("data:image/svg+xml,${encodeURIComponent(textures[skin] || textures.teal)}")`;
+    materialCache.set(skin, url);
+    return url;
+  }
+
+  function updateMaterial(skin) {
+    document.getElementById('material').style.backgroundImage = buildMaterialURL(skin);
+  }
+
+  // ===== 5. ГЕНЕРАЦИЯ ИЗНОСА (Кэширование по скину) =====
+  const wearCache = new Map();
+  
+  function generateScratches(intensity) {
+    const W = 390, H = 844;
+    const count = Math.floor(8 + intensity * 40);
+    let paths = '';
+    for (let i = 0; i < count; i++) {
+      let x, y;
+      const zone = Math.random();
+      if (zone < 0.4) {
+        if (Math.random() < 0.5) {
+          x = Math.random() < 0.5 ? rand(0, 30) : rand(W - 30, W); y = rand(0, H);
+        } else {
+          x = rand(0, W); y = Math.random() < 0.5 ? rand(0, 30) : rand(H - 30, H);
+        }
+      } else { x = rand(0, W); y = rand(0, H); }
+      const len = rand(20, 180) * (0.5 + intensity);
+      const angle = rand(0, Math.PI * 2);
+      const x2 = x + Math.cos(angle) * len;
+      const y2 = y + Math.sin(angle) * len;
+      const mx = (x + x2) / 2 + rand(-15, 15);
+      const my = (y + y2) / 2 + rand(-15, 15);
+      const sw = rand(0.4, 2.2) * (0.5 + intensity);
+      const op = rand(0.08, 0.35) * (0.4 + intensity * 0.6);
+      paths += `<path d='M${x.toFixed(1)},${y.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}' stroke='white' stroke-width='${sw.toFixed(2)}' opacity='${op.toFixed(2)}' fill='none'/>`;
+      if (Math.random() < 0.3 * intensity) {
+        const bx = x2 + rand(-30, 30), by = y2 + rand(-30, 30);
+        paths += `<path d='M${x2.toFixed(1)},${y2.toFixed(1)} L${bx.toFixed(1)},${by.toFixed(1)}' stroke='white' stroke-width='${(sw * 0.6).toFixed(2)}' opacity='${(op * 0.7).toFixed(2)}' fill='none'/>`;
+      }
+    }
+    return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>${paths}</svg>`)}")`;
+  }
+
+  function generateChips(intensity) {
+    const W = 390, H = 844;
+    const count = Math.floor(6 + intensity * 30);
+    let shapes = '';
+    for (let i = 0; i < count; i++) {
+      let cx, cy;
+      const side = Math.random();
+      if (side < 0.25) { cx = rand(0, 40); cy = rand(0, H); }
+      else if (side < 0.5) { cx = rand(W - 40, W); cy = rand(0, H); }
+      else if (side < 0.75) { cx = rand(0, W); cy = rand(0, 40); }
+      else { cx = rand(0, W); cy = rand(H - 40, H); }
+      const points = randInt(3, 6);
+      const baseR = rand(4, 18) * (0.5 + intensity);
+      let d = '';
+      for (let p = 0; p < points; p++) {
+        const angle = (p / points) * Math.PI * 2 + rand(-0.3, 0.3);
+        const r = baseR * rand(0.5, 1.3);
+        d += (p === 0 ? 'M' : 'L') + (cx + Math.cos(angle) * r).toFixed(1) + ',' + (cy + Math.sin(angle) * r).toFixed(1) + ' ';
+      }
+      d += 'Z';
+      const op = rand(0.3, 0.7) * (0.4 + intensity * 0.6);
+      shapes += `<path d='${d}' fill='#d8c8a0' opacity='${op.toFixed(2)}'/>`;
+    }
+    return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>${shapes}</svg>`)}")`;
+  }
+
+  function generateKnobWear(intensity) {
+    const S = 62;
+    let content = '';
+    const scratchCount = Math.floor(3 + intensity * 12);
+    for (let i = 0; i < scratchCount; i++) {
+      const angle = rand(0, Math.PI * 2);
+      const r1 = rand(8, 20);
+      const r2 = r1 + rand(5, 20);
+      const x1 = S/2 + Math.cos(angle) * r1, y1 = S/2 + Math.sin(angle) * r1;
+      const x2 = S/2 + Math.cos(angle) * r2, y2 = S/2 + Math.sin(angle) * r2;
+      const op = rand(0.15, 0.5) * (0.5 + intensity * 0.5);
+      content += `<line x1='${x1.toFixed(1)}' y1='${y1.toFixed(1)}' x2='${x2.toFixed(1)}' y2='${y2.toFixed(1)}' stroke='white' stroke-width='${rand(0.5, 1.2).toFixed(1)}' opacity='${op.toFixed(2)}'/>`;
+    }
+    const chipCount = Math.floor(1 + intensity * 6);
+    for (let i = 0; i < chipCount; i++) {
+      const cx = rand(10, S - 10), cy = rand(10, S - 10);
+      const r = rand(2, 6) * (0.5 + intensity);
+      const points = randInt(3, 5);
+      let d = '';
+      for (let p = 0; p < points; p++) {
+        const angle = (p / points) * Math.PI * 2;
+        const rr = r * rand(0.6, 1.4);
+        d += (p === 0 ? 'M' : 'L') + (cx + Math.cos(angle) * rr).toFixed(1) + ',' + (cy + Math.sin(angle) * rr).toFixed(1) + ' ';
+      }
+      d += 'Z';
+      const op = rand(0.3, 0.6) * (0.4 + intensity * 0.6);
+      content += `<path d='${d}' fill='black' opacity='${op.toFixed(2)}'/>`;
+    }
+    const edgeOp = 0.3 * intensity;
+    content += `<circle cx='${S/2}' cy='${S/2}' r='${S/2 - 3}' fill='none' stroke='black' stroke-width='4' opacity='${edgeOp.toFixed(2)}' stroke-dasharray='${randInt(3,8)},${randInt(2,6)},${randInt(4,12)},${randInt(3,7)}'/>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${S}' height='${S}' viewBox='0 0 ${S} ${S}'>${content}</svg>`)}")`;
+  }
+
+  function generateGlassWear(intensity) {
+    const W = 334, H = 200;
+    let content = '';
+    const arcs = Math.floor(4 + intensity * 20);
+    for (let i = 0; i < arcs; i++) {
+      const x = rand(0, W), y = rand(0, H);
+      const r = rand(15, 80);
+      const startA = rand(0, Math.PI * 2);
+      const endA = startA + rand(0.3, 1.6);
+      const x1 = x + Math.cos(startA) * r;
+      const y1 = y + Math.sin(startA) * r;
+      const x2 = x + Math.cos(endA) * r;
+      const y2 = y + Math.sin(endA) * r;
+      const op = rand(0.08, 0.3) * (0.4 + intensity * 0.6);
+      content += `<path d='M${x1.toFixed(1)},${y1.toFixed(1)} A${r.toFixed(1)},${r.toFixed(1)} 0 0 1 ${x2.toFixed(1)},${y2.toFixed(1)}' stroke='white' stroke-width='${rand(0.4, 1.1).toFixed(1)}' opacity='${op.toFixed(2)}' fill='none'/>`;
+    }
+    const lines = Math.floor(2 + intensity * 10);
+    for (let i = 0; i < lines; i++) {
+      const x = rand(0, W), y = rand(0, H);
+      const len = rand(10, 60);
+      const a = rand(0, Math.PI * 2);
+      const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
+      const op = rand(0.1, 0.35) * (0.4 + intensity * 0.6);
+      content += `<line x1='${x.toFixed(1)}' y1='${y.toFixed(1)}' x2='${x2.toFixed(1)}' y2='${y2.toFixed(1)}' stroke='white' stroke-width='${rand(0.4, 1.0).toFixed(1)}' opacity='${op.toFixed(2)}'/>`;
+    }
+    const smudges = Math.floor(1 + intensity * 4);
+    for (let i = 0; i < smudges; i++) {
+      const cx = rand(20, W - 20), cy = rand(20, H - 20);
+      const rx = rand(8, 20), ry = rx * rand(0.7, 1.3);
+      const op = rand(0.05, 0.15) * (0.5 + intensity * 0.5);
+      content += `<ellipse cx='${cx.toFixed(1)}' cy='${cy.toFixed(1)}' rx='${rx.toFixed(1)}' ry='${ry.toFixed(1)}' fill='white' opacity='${op.toFixed(2)}' transform='rotate(${rand(0,360).toFixed(0)} ${cx.toFixed(1)} ${cy.toFixed(1)})'/>`;
+    }
+    return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>${content}</svg>`)}")`;
+  }
+
+  function generateCracks(intensity) {
+    const W = 334, H = 200;
+    let content = '';
+    const crackCount = Math.floor(1 + intensity * 4);
+    for (let c = 0; c < crackCount; c++) {
+      let sx, sy;
+      const pos = Math.random();
+      if (pos < 0.25) { sx = rand(0, 20); sy = rand(0, H); }
+      else if (pos < 0.5) { sx = rand(W - 20, W); sy = rand(0, H); }
+      else if (pos < 0.75) { sx = rand(0, W); sy = rand(0, 20); }
+      else { sx = rand(0, W); sy = rand(H - 20, H); }
+
+      const rays = randInt(3, 7);
+      for (let r = 0; r < rays; r++) {
+        const angle = (r / rays) * Math.PI * 2 + rand(-0.4, 0.4);
+        const len = rand(15, 70) * (0.5 + intensity);
+        const ex = sx + Math.cos(angle) * len;
+        const ey = sy + Math.sin(angle) * len;
+
+        let d = `M${sx.toFixed(1)},${sy.toFixed(1)}`;
+        const steps = randInt(2, 4);
+        let px = sx, py = sy;
+        for (let s = 1; s <= steps; s++) {
+          const t = s / steps;
+          const nx = sx + (ex - sx) * t + rand(-8, 8);
+          const ny = sy + (ey - sy) * t + rand(-8, 8);
+          d += ` L${nx.toFixed(1)},${ny.toFixed(1)}`;
+          px = nx; py = ny;
+        }
+        const op = rand(0.3, 0.7) * intensity + 0.1;
+        content += `<path d='${d}' stroke='white' stroke-width='${rand(0.4, 1.0).toFixed(1)}' opacity='${op.toFixed(2)}' fill='none'/>`;
+
+        if (Math.random() < 0.4) {
+          const bx = px + rand(-15, 15);
+          const by = py + rand(-15, 15);
+          content += `<path d='M${px.toFixed(1)},${py.toFixed(1)} L${bx.toFixed(1)},${by.toFixed(1)}' stroke='white' stroke-width='${rand(0.3, 0.7).toFixed(1)}' opacity='${(op * 0.7).toFixed(2)}' fill='none'/>`;
+        }
+      }
+      const centerR = rand(1.5, 4) * (0.5 + intensity);
+      content += `<circle cx='${sx.toFixed(1)}' cy='${sy.toFixed(1)}' r='${centerR.toFixed(1)}' fill='white' opacity='${(0.4 * intensity + 0.2).toFixed(2)}'/>`;
+    }
+    return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>${content}</svg>`)}")`;
+  }
+
+  function generateScrewWear(intensity) {
+    const S = 12;
+    let content = '';
+    const baseOp = 0.4 + intensity * 0.4;
+    const w = 1.2;
+    content += `<line x1='2' y1='${S/2}' x2='${S-2}' y2='${S/2}' stroke='black' stroke-width='${w}' opacity='${baseOp}'/>`;
+    content += `<line x1='${S/2}' y1='2' x2='${S/2}' y2='${S-2}' stroke='black' stroke-width='${w}' opacity='${baseOp}'/>`;
+    const scratches = Math.floor(2 + intensity * 8);
+    for (let i = 0; i < scratches; i++) {
+      const x = rand(0, S), y = rand(0, S);
+      const len = rand(2, 8);
+      const a = rand(0, Math.PI * 2);
+      const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
+      const op = rand(0.2, 0.6) * (0.4 + intensity * 0.6);
+      content += `<line x1='${x.toFixed(1)}' y1='${y.toFixed(1)}' x2='${x2.toFixed(1)}' y2='${y2.toFixed(1)}' stroke='white' stroke-width='${rand(0.4, 0.9).toFixed(1)}' opacity='${op.toFixed(2)}'/>`;
+    }
+    const edgeOp = 0.3 * intensity;
+    content += `<circle cx='${S/2}' cy='${S/2}' r='${S/2 - 0.8}' fill='none' stroke='black' stroke-width='1.5' opacity='${edgeOp.toFixed(2)}' stroke-dasharray='${randInt(1,3)},${randInt(1,2)},${randInt(1,4)}'/>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${S}' height='${S}' viewBox='0 0 ${S} ${S}'>${content}</svg>`)}")`;
+  }
+
+  function regenerateAll(skin, force = false) {
+    if (!force && wearCache.has(skin)) {
+      applyWear(wearCache.get(skin));
+      return;
+    }
+
+    const cs = getComputedStyle(document.body);
+    const get = (v, def) => parseFloat(cs.getPropertyValue(v)) || def;
+
+    const wear = {
+      scratches: generateScratches(get('--wear-scratch', 0.5)),
+      chips: generateChips(get('--wear-chips', 0.2)),
+      glass: generateGlassWear(get('--wear-glass', 0.2)),
+      cracks: generateCracks(get('--cracks', 0)),
+      knobs: Array.from({ length: 3 }, () => generateKnobWear(get('--wear-knob', 0.2))),
+      screw: generateScrewWear(get('--wear-screw', 0.2))
+    };
+    
+    wearCache.set(skin, wear);
+    applyWear(wear);
+  }
+
+  function applyWear(wear) {
+    document.getElementById('scratches').style.backgroundImage = wear.scratches;
+    document.getElementById('chips').style.backgroundImage = wear.chips;
+    document.getElementById('vuGlass').style.backgroundImage = wear.glass;
+    document.getElementById('vuCracks').style.backgroundImage = wear.cracks;
+    
+    document.querySelectorAll('.knob-wear').forEach((el, i) => {
+      el.style.backgroundImage = wear.knobs[i];
+    });
+
+    document.documentElement.style.setProperty('--screw-wear-url', wear.screw);
+  }
+
+  const screwStyle = document.createElement('style');
+  screwStyle.textContent = `.screw::before { background-image: var(--screw-wear-url); }`;
+  document.head.appendChild(screwStyle);
+
+  // ===== 6. СКИНЫ =====
+  let isSkinChanging = false;
+  
+  function setSkin(skin) {
+    if (isSkinChanging) return;
+    isSkinChanging = true;
+
+    document.body.className = 'skin-' + skin;
+    document.getElementById('skinName').textContent = skinNames[skin].toUpperCase();
+    localStorage.setItem('hq36-skin', skin);
+    
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        updateNoise();
+        regenerateAll(skin);
+        updateStencilText();
+        updateMaterial(skin);
+        isSkinChanging = false;
+      }, 50);
+    });
+  }
+
+  function cycleSkinNext() {
+    const current = localStorage.getItem('hq36-skin') || 'teal';
+    const idx = SKINS.indexOf(current);
+    setSkin(SKINS[(idx + 1) % SKINS.length]);
+    vibrate();
+  }
+  function cycleSkinPrev() {
+    const current = localStorage.getItem('hq36-skin') || 'teal';
+    const idx = SKINS.indexOf(current);
+    setSkin(SKINS[(idx - 1 + SKINS.length) % SKINS.length]);
+    vibrate();
+  }
+
+  // ===== 7. VU СТРЕЛКИ (requestAnimationFrame) =====
+  let playing = true;
+  let prevL = -40, prevR = -40;
+  let needsUpdate = false;
+  let rafId = null;
+
+  const needleL = document.getElementById('needleL');
+  const needleR = document.getElementById('needleR');
+
+  function animateNeedles() {
+    if (!playing) {
+      rafId = requestAnimationFrame(animateNeedles);
+      return;
+    }
+
+    const angleL = -40 + Math.random() * 50;
+    const angleR = -40 + Math.random() * 50;
+
+    const currLOver = angleL > -3;
+    const currROver = angleR > -3;
+    const prevLOver = prevL > -3;
+    const prevROver = prevR > -3;
+
+    if ((currLOver && !prevLOver) || (currROver && !prevROver)) {
+      triggerFlash();
+    }
+
+    prevL = angleL;
+    prevR = angleR;
+
+    needleL.style.transform = `translateX(-50%) rotate(${angleL}deg)`;
+    needleR.style.transform = `translateX(-50%) rotate(${angleR}deg)`;
+
+    // Случайная задержка для аналогового ощущения
+    setTimeout(() => {
+      if (playing) rafId = requestAnimationFrame(animateNeedles);
+      else rafId = requestAnimationFrame(animateNeedles); // Продолжаем цикл, но без обновления
+    }, 100 + Math.random() * 80);
+  }
+
+  // Запуск
+  rafId = requestAnimationFrame(animateNeedles);
+
+  function togglePlay() {
+    playing = !playing;
+    const zone = document.getElementById('playZone');
+    zone.textContent = playing ? '❚❚' : '▷';
+    vibrate();
+    if (!playing) {
+      needleL.style.transform = 'translateX(-50%) rotate(-40deg)';
+      needleR.style.transform = 'translateX(-50%) rotate(-40deg)';
+      needleL.style.transition = 'transform 0.5s ease-in-out';
+      needleR.style.transition = 'transform 0.5s ease-in-out';
+      prevL = -40; prevR = -40;
+    } else {
+      needleL.style.transition = 'transform 0.12s ease-out';
+      needleR.style.transition = 'transform 0.12s ease-out';
+    }
+  }
+
+  // ===== 8. ВСПЫШКА =====
+  let flashTimeout = null;
+  const vuFlash = document.getElementById('vuFlash');
+
+  function triggerFlash() {
+    vuFlash.classList.add('on');
+    clearTimeout(flashTimeout);
+    flashTimeout = setTimeout(() => vuFlash.classList.remove('on'), 60);
+  }
+
+  // ===== 9. ОСТАЛЬНОЕ =====
+  function pair() {
+    const c = document.getElementById('check');
+    c.classList.add('pairing');
+    vibrate();
+    setTimeout(() => c.classList.remove('pairing'), 4000);
+  }
+
+  function flashZone(el) {
+    el.classList.add('flash');
+    vibrate();
+    setTimeout(() => el.classList.remove('flash'), 150);
+  }
+
+  function pressBtn(el, cb) {
+    el.classList.add('pressed');
+    vibrate();
+    setTimeout(() => {
+      el.classList.remove('pressed');
+      if (cb) cb();
+    }, 120);
+  }
+
+  let ancState = 3;
+  function cycleANC(el) {
+    pressBtn(el, () => {
+      ancState = ancState === 3 ? 1 : ancState + 1;
+      el.classList.remove('anc-2', 'anc-3');
+      if (ancState === 2) el.classList.add('anc-2');
+      if (ancState === 3) el.classList.add('anc-3');
+    });
+  }
+
+  let soundState = 2;
+  function cycleSound(el) {
+    pressBtn(el, () => {
+      soundState = soundState === 4 ? 1 : soundState + 1;
+      el.classList.remove('sound-1', 'sound-2', 'sound-3', 'sound-4');
+      el.classList.add('sound-' + soundState);
+    });
+  }
+
+  let spaceOn = false;
+  function toggleSpace(el) {
+    pressBtn(el, () => {
+      spaceOn = !spaceOn;
+      el.classList.toggle('space-on', spaceOn);
+    });
+  }
+
+  function setCodec(el) {
+    vibrate();
+    document.querySelectorAll('.small').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // ===== 10. ИНИЦИАЛИЗАЦИЯ =====
+  (function init() {
+    renderBattery(5);
+    const saved = localStorage.getItem('hq36-skin');
+    if (saved && skinNames[saved]) {
+      setSkin(saved);
+    } else {
+      requestAnimationFrame(() => {
+        updateNoise();
+        regenerateAll('teal');
+        updateStencilText();
+        updateMaterial('teal');
+      });
+    }
+  })();
+</script>
+
+</body>
+</html>
