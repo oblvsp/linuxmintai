@@ -116,7 +116,7 @@ server:
   port: 11434
 gpu:
   total_vram_gb: 0
-  headroom_gb: 6
+  headroom_gb: 0.9
   max_temperature_c: 83
 scheduler:
   cooldown_seconds: 2.0
@@ -130,18 +130,18 @@ import re, sys
 path, vram_gb = sys.argv[1], sys.argv[2]
 src = open(path).read()
 orig = src
-# 1) broker и ollama — только loopback
+# 1) broker и ollama — только loopback; trusted_hosts — для Open WebUI из контейнера
 src = re.sub(r'(?s)(server:\n)(.*?)(\n\S|\Z)',
-             r'\1  host: "127.0.0.1"\n  port: 11434\3', src)
+             r'\1  host: "127.0.0.1"\n  port: 11434\n  trusted_hosts: ["localhost", "127.0.0.1", "host.docker.internal"]\3', src)
 src = re.sub(r'(?s)(ollama:\n)(.*?)(\n\S|\Z)',
              r'\1  host: "127.0.0.1"\n  port: 11435\3', src)
 # 2) GPU: явный total_vram_gb (auto-detect=0 ломает бюджет в user-сервисе) и headroom
 src = re.sub(r'^(\s*)total_vram_gb:.*$', rf'\1total_vram_gb: {vram_gb}  # явное значение: auto-detect не работает в systemd user-сервисе', src, flags=re.M)
-src = re.sub(r'^(\s*)headroom_gb:.*$', r'\1headroom_gb: 1.5', src, flags=re.M)
+src = re.sub(r'^(\s*)headroom_gb:.*$', r'\1headroom_gb: 0.9', src, flags=re.M)
 # 3) записи моделей: каждая обязана иметь vram_gb, иначе дефолт 10GB -> 504
 models = {
     "qwen3:8b": ("4.9", "general"),
-    "qwen3.5:9b": ("6.1", "general"),
+    "qwen3.5:9b": ("6.2", "general"),
     "crewai-qwen3-8b": ("5.0", "agent"),
 }
 if re.search(r'^models:\s*\{\}', src, flags=re.M):
@@ -230,6 +230,37 @@ if command -v interpreter >/dev/null; then
   echo "[WARN] interpreter 0.0.56 установлен, но на 8 GB VRAM непригоден (системный промпт движка ~11.9k токенов, см. PROMPT.md шаг 8) — основной путь: CrewAI-агент"
 else
   echo "[SKIP] Open Interpreter не устанавливается: codex-движок 0.0.56 требует контекст, не влезающий в 8 GB VRAM (PROMPT.md шаг 8)"
+fi
+
+# ---------- Шаг 10 (опция --with-webui): Open WebUI в Docker ----------
+if [ "${1:-}" = "--with-webui" ]; then
+  if ! docker info >/dev/null 2>&1; then
+    run $SUDO systemctl enable --now docker
+  fi
+  # юнит-мост контейнер→loopback брокера (route_localnet + DNAT на docker0)
+  if ! $SUDO systemctl is-active --quiet bastion-webui-bridge; then
+    run $SUDO cp examples/bastion-webui-bridge.service /etc/systemd/system/
+    run $SUDO systemctl daemon-reload
+    run $SUDO systemctl enable --now bastion-webui-bridge
+    ok "bastion-webui-bridge активен"
+  else
+    skip "bastion-webui-bridge уже активен"
+  fi
+  if docker ps --format '{{.Names}}' | grep -qx open-webui; then
+    skip "контейнер open-webui запущен"
+  else
+    docker rm -f open-webui 2>/dev/null
+    run docker run -d --name open-webui --restart unless-stopped \
+      --add-host=host.docker.internal:host-gateway \
+      -p 127.0.0.1:3000:8080 \
+      -v open-webui:/app/backend/data \
+      -e ENABLE_OLLAMA_API=false \
+      -e OPENAI_API_BASE_URL=http://host.docker.internal:11434/v1 \
+      -e OPENAI_API_KEY=lmintai \
+      ghcr.io/open-webui/open-webui:main
+    ok "Open WebUI: http://127.0.0.1:3000 (первый вход создаёт администратора)"
+    echo "[HINT] в Settings -> Model: max_tokens >= 2048, num_ctx 4096 (thinking-модели, иначе пустые ответы)"
+  fi
 fi
 
 # ---------- Финальная проверка ----------

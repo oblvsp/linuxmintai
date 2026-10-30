@@ -100,17 +100,18 @@ systemctl --user daemon-reload && systemctl --user enable --now bastion
 
 Конфиг `~/.config/bastion/broker.yaml`: `bastion --init-config` создаёт файл с ОПАСНЫМИ дефолтами, их надо исправить руками (install.sh делает это сам; при ручной настройке проверь каждое значение):
 - `server.host: "127.0.0.1"` — init-config пишет `0.0.0.0`, это утечка брокера в LAN;
+- `server.trusted_hosts` — bastion включил DNS-rebinding guard: запросы с Host `host.docker.internal` (из контейнера WebUI) без этого имени в списке получают HTTP 400;
 - `gpu.total_vram_gb: 8` — явным числом! Auto-detect (`0`) не работает в systemd user-сервисе: бюджет VRAM становится 0 и любой запрос получает 504;
-- `gpu.headroom_gb: 1.5` — init-config пишет 6 из 8, тогда ни одна модель не проходит бюджет;
+- `gpu.headroom_gb: 0.9` — init-config пишет 6 из 8, тогда ни одна модель не проходит бюджет;
 - `models:` — записи `vram_gb` для КАЖДОЙ модели. Модель без записи получает дефолтную оценку 10 GB > бюджета 6.5 GB → вечно 504. Рабочий минимум:
 
 ollama: {host: "127.0.0.1", port: 11435}
-server: {host: "127.0.0.1", port: 11434}
-gpu: {total_vram_gb: 8, headroom_gb: 1.5, max_temperature_c: 83}
+server: {host: "127.0.0.1", port: 11434, trusted_hosts: ["localhost", "127.0.0.1", "host.docker.internal"]}
+gpu: {total_vram_gb: 8, headroom_gb: 0.9, max_temperature_c: 83}
 scheduler: {cooldown_seconds: 2.0, max_queue_size: 512}
 models:
   "qwen3:8b": {vram_gb: 4.9, default_num_ctx: 4096, tags: ["general"]}
-  "qwen3.5:9b": {vram_gb: 6.1, default_num_ctx: 4096, tags: ["general"]}
+  "qwen3.5:9b": {vram_gb: 6.2, default_num_ctx: 4096, tags: ["general"]}
   "crewai-qwen3-8b": {vram_gb: 5.0, default_num_ctx: 4096, tags: ["agent"]}
 
 После любой правки: `systemctl --user restart bastion && bastion --validate` (должно быть 0 failed). Диагностика 504: смотри `queue_by_model` и варнинг планировщика вида «need X MB, available Y MB» — это почти всегда отсутствующая/неверная запись в `models:`.
@@ -182,5 +183,26 @@ uv venv ~/ai-workspace/venv
 - Деструктивные команды (`rm -rf /`, mkfs, dd и т.п.) блокирует BashTool; не ослабляй список.
 - Ограничение агента: одна 8B-модель на GPU; одновременная работа двух моделей через swap стоит ~20 s на переключение — не плоди клиентов без нужды.
 - Соседние проекты пользователя (репозитории в ~/Документы, кроме linuxmintai) агенту недоступны для анализа — не подключай их в контекст агента.
+
+
+Шаг 10: Open WebUI (чат-интерфейс) — единственный узел на Docker.
+
+Docker включаете осознанно только ради WebUI (остальные компоненты — нативные systemd-сервисы). Проверенная установка:
+
+docker run -d --name open-webui --restart unless-stopped \
+  --add-host=host.docker.internal:host-gateway \
+  -p 127.0.0.1:3000:8080 \
+  -v open-webui:/app/backend/data \
+  -e ENABLE_OLLAMA_API=false \
+  -e OPENAI_API_BASE_URL=http://host.docker.internal:11434/v1 \
+  -e OPENAI_API_KEY=lmintai \
+  ghcr.io/open-webui/open-webui:main
+
+Тонкости (все три обязательны, иначе пустой список моделей):
+- привязка `-p 127.0.0.1:3000:8080` — без `127.0.0.1:` WebUI откроется на всех интерфейсах (утечка UI в LAN);
+- контейнер не видит loopback-слушателя хоста: нужен systemd-юнит мостика (route_localnet на docker0 + DNAT 172.17.0.1:11434→127.0.0.1:11434 + ACCEPT с docker0) — эталон `examples/bastion-webui-bridge.service`, ставится в /etc/systemd/system и `systemctl enable --now`;
+- bastion включил DNS-rebinding guard: в `server.trusted_hosts` добавить `host.docker.internal`, иначе все запросы из контейнера получают 400.
+
+Настройки качества в WebUI (Settings → Model, для обеих thinking-моделей): `max_tokens` ≥ 2048, `num_ctx` 4096. Если бюджет токенов меньше, модель тратит его целиком на скрытое «размышление» и возвращает ПУСТЫЙ ответ (done_reason=length) — это и есть причина «непонятного вывода» в прошлых прогонов; `thinking:false` эти сборки не глушат. Быстрые агентные вопросы — crewai-qwen3-8b (≈250 токенов расхода), развёрнутые — qwen3.5:9b (≈900). Первый запрос к невыгруженной модели платит ~40–60 s загрузки (у qwen3.5:9b она на границе бюджета — headroom 0.9, см. шаг 3).
 
 Финальная проверка: `bastion --validate` (0 failed), `curl -s localhost:11434/broker/status | python3 -m json.tool` (живая телеметрия), прогон `agent_demo.py` с корректной строкой модели, `earlyoom` активен (`systemctl status earlyoom`). Сообщи статус каждого компонента и результат тестового вызова.

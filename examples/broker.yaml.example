@@ -8,10 +8,11 @@ ollama:
 server:
   host: "127.0.0.1"
   port: 11434
+  trusted_hosts: ["localhost", "127.0.0.1", "host.docker.internal"]  # DNS-rebinding guard: пропускает только эти Host-заголовки
 
 gpu:
   total_vram_gb: 8    # явное значение: auto-detect не сработал в user-сервисе (бюджет=0 -> 504)
-  headroom_gb: 1.5
+  headroom_gb: 0.9
   max_temperature_c: 83
 
 scheduler:
@@ -25,7 +26,7 @@ models:
     tags: ["general"]
 
   "qwen3.5:9b":
-    vram_gb: 6.1
+    vram_gb: 6.2
     default_num_ctx: 4096
     tags: ["general"]
 

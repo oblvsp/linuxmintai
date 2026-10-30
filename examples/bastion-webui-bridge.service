@@ -1,0 +1,14 @@
+[Unit]
+Description=BASTION bridge for Open WebUI container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/sysctl -w net.ipv4.conf.docker0.route_localnet=1
+ExecStart=/usr/sbin/iptables -t nat -A PREROUTING -d 172.17.0.1 -p tcp --dport 11434 -j DNAT --to-destination 127.0.0.1:11434
+ExecStart=/usr/sbin/iptables -A INPUT -i docker0 -p tcp --dport 11434 -j ACCEPT
+
+[Install]
+WantedBy=multi-user.target
