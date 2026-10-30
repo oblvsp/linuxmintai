@@ -70,10 +70,11 @@ DROPIN=/etc/systemd/system/ollama.service.d/override.conf
 # брала бы свои 4096. Держать в согласии с default_num_ctx модели в broker.yaml.
 WANT_ENVS=(OLLAMA_HOST=127.0.0.1:11435 OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_NUM_PARALLEL=1 OLLAMA_KEEP_ALIVE=30m OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0 OLLAMA_CONTEXT_LENGTH=24576)
 need_dropin=1
-if $SUDO test -f "$DROPIN" 2>/dev/null; then
+# читаем drop-in без $SUDO: иначе каждая из 8 проверок при pkexec даёт отдельный диалог
+if [ -r "$DROPIN" ]; then
   need_dropin=0
   for e in "${WANT_ENVS[@]}"; do
-    $SUDO grep -qF "$e" "$DROPIN" || need_dropin=1
+    grep -qF "$e" "$DROPIN" || need_dropin=1
   done
 fi
 if [ "$need_dropin" = 1 ]; then
@@ -281,7 +282,51 @@ if [ "$WITH_WEBUI" = 1 ]; then
       -e SCARF_NO_ANALYTICS=true -e DO_NOT_TRACK=true -e ANONYMIZED_TELEMETRY=false \
       ghcr.io/open-webui/open-webui:main
     ok "Open WebUI: http://127.0.0.1:3000 (первый вход создаёт администратора)"
-    echo "[HINT] в Settings -> Model: max_tokens >= 2048; num_ctx не трогать — его задаёт bastion"
+  fi
+
+  # --- настройки в webui.db ---
+  # БД перекрывает env-переменные контейнера, поэтому нужные ключи выставляются явно.
+  # Иначе повторная установка/ручная правка в UI тихо возвращают дефолты: RAG режет
+  # файлы на чанки, а выключенный ollama.enable даёт «Нет доступных моделей».
+  for _ in $(seq 1 60); do
+    docker exec open-webui test -f /app/backend/data/webui.db 2>/dev/null && break
+    sleep 2
+  done
+  WEBUI_DIFF=$(docker exec -i open-webui python - <<'PYEOF'
+import json, sqlite3
+
+want = {
+    "ollama.enable": True,                          # без него WebUI не видит модели
+    "rag.full_context": True,                       # файл целиком в промпт, без нарезки на чанки
+    "models.default_params": {"max_tokens": 4096},  # reasoning-модель: <2048 даёт пустой content
+}
+
+con = sqlite3.connect("/app/backend/data/webui.db")
+diff = []
+for key, val in want.items():
+    row = con.execute("SELECT value FROM config WHERE key = ?", (key,)).fetchone()
+    cur = json.loads(row[0]) if row else None
+    if cur != val:
+        con.execute(
+            "INSERT INTO config(key, value) VALUES(?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, json.dumps(val)),
+        )
+        diff.append(f"{key}: {cur!r} -> {val!r}")
+con.commit()
+print("; ".join(diff))
+PYEOF
+)
+  if [ -n "$WEBUI_DIFF" ]; then
+    echo "[RUN]  webui.db: $WEBUI_DIFF"
+    run docker restart open-webui
+    for _ in $(seq 1 60); do
+      [ "$(docker inspect -f '{{.State.Health.Status}}' open-webui 2>/dev/null)" = healthy ] && break
+      sleep 2
+    done
+    ok "настройки WebUI применены (конфиг читается при старте — отсюда перезапуск)"
+  else
+    skip "настройки webui.db уже корректны"
   fi
 fi
 
