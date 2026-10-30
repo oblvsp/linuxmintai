@@ -29,8 +29,8 @@ models:
     tags: ["general"]
 
   "qwen3.5:9b":
-    vram_gb: 5.5        # замер при num_ctx 16384 (при 4096 было 5.2)
-    default_num_ctx: 16384  # потолок промпта без вытеснения в CPU
+    vram_gb: 5.5        # замер при num_ctx 24576 (5874MB); при 16384 — 5795MB
+    default_num_ctx: 24576  # файлы до ~24k токенов, часть слоёв уходит в CPU
     tags: ["general"]
 
   "crewai-qwen3-8b":

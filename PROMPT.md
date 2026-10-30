@@ -112,10 +112,10 @@ gpu: {total_vram_gb: 8, headroom_gb: 0.9, hardware_margin_gb: 0.9, max_temperatu
 scheduler: {cooldown_seconds: 2.0, max_queue_size: 512}
 models:
   "qwen3:8b": {vram_gb: 5.1, default_num_ctx: 4096, tags: ["general"]}
-  "qwen3.5:9b": {vram_gb: 5.5, default_num_ctx: 16384, tags: ["general"]}
+  "qwen3.5:9b": {vram_gb: 5.5, default_num_ctx: 24576, tags: ["general"]}
   "crewai-qwen3-8b": {vram_gb: 5.1, default_num_ctx: 4096, tags: ["agent"]}
 
-`default_num_ctx` — это ЖЁСТКИЙ потолок промпта: Ollama обрезает запрос, только если он длиннее `num_ctx`, и тогда режет сразу вдвое (`limit = num_ctx − (num_ctx − keep)/2`, keep=4). При 4096 любой файл на 5–16k токенов терял хвост; при 16384 такие файлы проходят целиком. Дальше 16384 поднимать бессмысленно: 24576 и 32768 уже вытесняют ~15% слоёв в CPU (проверено), время префилла растёт с 20 до 40 с, а VRAM свободной остаётся <1 GB.
+`default_num_ctx` — это ЖЁСТКИЙ потолок промпта: Ollama обрезает запрос, только если он длиннее `num_ctx`, и тогда режет сразу вдвое (`limit = num_ctx − (num_ctx − keep)/2`, keep=4). При 4096 любой файл на 5–16k токенов терял хвост. Для qwen3.5:9b выставлено 24576: файлы до ~24k токенов проходят целиком, но ~12% слоёв вытесняется в CPU (21k токенов ≈ 45 с префилла). 16384 держится на GPU целиком, зато файлы >16k режутся вдвое — 24576 взят как компромисс.
 
 После любой правки: `systemctl --user restart bastion && bastion --validate` (должно быть 0 failed). Диагностика: «need X MB, available Y MB» — неверная/отсутствующая запись в `models:` или мал `hardware_margin_gb`; «nvidia-smi backstop: only A GB free, need B + margin» — завышен `vram_gb` (сравни с `VRAM committed` в журнале и `size_vram` из `/api/ps`).
 
@@ -208,7 +208,7 @@ docker run -d --name open-webui --restart unless-stopped \
 - контейнер не видит loopback-слушателя хоста: нужен systemd-юнит мостика (route_localnet на docker0 + DNAT 172.17.0.1:11434→127.0.0.1:11434 + ACCEPT с docker0) — эталон `examples/bastion-webui-bridge.service`, ставится в /etc/systemd/system и `systemctl enable --now`;
 - bastion включил DNS-rebinding guard: в `server.trusted_hosts` добавить `host.docker.internal`, иначе все запросы из контейнера получают 400.
 
-Настройки качества в WebUI: `max_tokens` ≥ 2048 (глобальный дефолт 4096 — в `models.default_params`), `num_ctx` вручную не задавать: его подставляет bastion из `default_num_ctx` (у qwen3.5:9b — 16384). Если бюджет токенов меньше, модель тратит его целиком на скрытое «размышление» и возвращает ПУСТЫЙ ответ (done_reason=length) — это и есть причина «непонятного вывода» в прошлых прогонов; `thinking:false` эти сборки не глушат. Быстрые агентные вопросы — crewai-qwen3-8b (≈250 токенов расхода), развёрнутые — qwen3.5:9b (≈900). Первый запрос к невыгруженной модели платит 5–15 s (вытеснение + загрузка); в панели из шага 11 это фаза «загрузка модели».
+Настройки качества в WebUI: `max_tokens` ≥ 2048 (глобальный дефолт 4096 — в `models.default_params`), `num_ctx` вручную не задавать: его подставляет bastion из `default_num_ctx` (у qwen3.5:9b — 24576). Если бюджет токенов меньше, модель тратит его целиком на скрытое «размышление» и возвращает ПУСТЫЙ ответ (done_reason=length) — это и есть причина «непонятного вывода» в прошлых прогонов; `thinking:false` эти сборки не глушат. Быстрые агентные вопросы — crewai-qwen3-8b (≈250 токенов расхода), развёрнутые — qwen3.5:9b (≈900). Первый запрос к невыгруженной модели платит 5–15 s (вытеснение + загрузка); в панели из шага 11 это фаза «загрузка модели».
 
 Шаг 11: Панель состояния и desklet (опционально, но сильно улучшает UX).
 

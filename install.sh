@@ -160,10 +160,10 @@ else:
     src = src.replace('gpu:\n', 'gpu:\n  hardware_margin_gb: 0.9\n', 1)
 # 3) записи моделей: vram_gb — замеренный runtime-VRAM, не размер файла.
 #    Завышение запирает модель в очереди (nvidia-smi backstop), занижение — риск OOM.
-#    default_num_ctx — потолок промпта; больше 16384 уводит слои в CPU.
+#    default_num_ctx — потолок промпта; выше ~16k часть слоёв уходит в CPU.
 models = {
     "qwen3:8b": ("5.1", 4096, "general"),
-    "qwen3.5:9b": ("5.5", 16384, "general"),
+    "qwen3.5:9b": ("5.5", 24576, "general"),
     "crewai-qwen3-8b": ("5.1", 4096, "agent"),
 }
 for name, (gb, ctx, tag) in models.items():
