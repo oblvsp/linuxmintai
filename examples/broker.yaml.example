@@ -1,0 +1,35 @@
+# BASTION configuration
+# See https://github.com/cypwin/bastion for full reference.
+
+ollama:
+  host: "127.0.0.1"
+  port: 11435
+
+server:
+  host: "127.0.0.1"
+  port: 11434
+
+gpu:
+  total_vram_gb: 8    # явное значение: auto-detect не сработал в user-сервисе (бюджет=0 -> 504)
+  headroom_gb: 1.5
+  max_temperature_c: 83
+
+scheduler:
+  cooldown_seconds: 2.0
+  max_queue_size: 512
+
+models:
+  "qwen3:8b":
+    vram_gb: 4.9
+    default_num_ctx: 4096
+    tags: ["general"]
+
+  "qwen3.5:9b":
+    vram_gb: 6.1
+    default_num_ctx: 4096
+    tags: ["general"]
+
+  "crewai-qwen3-8b":
+    vram_gb: 5.0
+    default_num_ctx: 4096
+    tags: ["agent"]

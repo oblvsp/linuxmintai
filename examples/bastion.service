@@ -1,0 +1,13 @@
+[Unit]
+Description=BASTION single-GPU safety broker for Ollama
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/bastion
+Restart=on-failure
+RestartSec=3
+Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+[Install]
+WantedBy=default.target
